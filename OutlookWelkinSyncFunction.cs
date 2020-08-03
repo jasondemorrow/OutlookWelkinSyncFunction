@@ -21,6 +21,7 @@ namespace OutlookWelkinSyncFunction
             IEnumerable<WelkinPractitioner> welkinUsers = welkinClient.GetAllPractitioners();
             ISet<string> welkinUserNames = new HashSet<string>();
             IDictionary<string, string> welkinUserNamesByCalendarId = new Dictionary<string, string>();
+            IDictionary<string, string> welkinCalendarIdsByUserName = new Dictionary<string, string>();
 
             foreach (WelkinPractitioner welkinUser in welkinUsers)
             {
@@ -34,6 +35,7 @@ namespace OutlookWelkinSyncFunction
 
                 welkinUserNames.Add(userName);
                 welkinUserNamesByCalendarId[calendar.Id] = userName;
+                welkinCalendarIdsByUserName[userName] = calendar.Id;
             }
 
             IEnumerable<WelkinEvent> welkinEvents = welkinClient.GetEventsUpdatedSince(historySpan);
@@ -73,21 +75,32 @@ namespace OutlookWelkinSyncFunction
                     IEnumerable<Event> recentlyUpdatedOutlookEvents = outlookClient.GetEventsForUserUpdatedSince(user, TimeSpan.FromDays(7), Constants.OutlookExtensionsNamespace);
                     foreach (Event evt in recentlyUpdatedOutlookEvents)
                     {
-                        log.LogInformation($"Found newly updated Outlook event '{evt.Subject}' for user {userName}.");
-                        if (evt.Extensions != null) // This Outlook event is already sync'ed with Welkin and needs to be updated there
+                        try
                         {
-                            if (evt.Extensions.AdditionalData != null && evt.Extensions.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
+                            WelkinEvent linkedWelkinEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
+                            bool isNew = true;
+                            log.LogInformation($"Found newly updated Outlook event '{evt.Subject}' for user {userName}.");
+
+                            if (evt.Extensions != null) // This Outlook event is already sync'ed with Welkin and needs to be updated there
                             {
-                                WelkinEvent linkedWelkinEvent;
+                                if (evt.Extensions.AdditionalData != null && evt.Extensions.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
+                                {
+                                    string linkedEventId = evt.Extensions.AdditionalData[Constants.LinkedWelkinEventIdKey].ToString();
+                                    linkedWelkinEvent = welkinClient.GetEvent(linkedEventId);
+                                    isNew = false;
+                                }
+                                else
+                                {
+                                    log.LogError($"Outlook event {evt.Id} missing expected extension data.");
+                                }
                             }
-                            else
-                            {
-                                log.LogError($"Outlook event {evt.Id} missing expected extension data.")
-                            }
-                            foreach(Extension ext in evt.Extensions)
-                            {
-                                log.LogInformation($"Found extension {ext.ToString()}");
-                            }
+
+                            linkedWelkinEvent.SyncFrom(evt);
+                            welkinClient.CreateOrUpdateEvent(linkedWelkinEvent, isNew);
+                        }
+                        catch (Exception e)
+                        {
+                            log.LogError(e, $"While sync'ing Outlook event {evt.Id} for user {userName}.");
                         }
                     }
                 }

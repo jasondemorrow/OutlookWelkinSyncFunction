@@ -1,10 +1,39 @@
 using System;
+using Microsoft.Graph;
 using Newtonsoft.Json;
 
 namespace OutlookWelkinSyncFunction
 {
     public class WelkinEvent
     {
+        public static WelkinEvent CreateDefaultForCalendar(string calendarId)
+        {
+            WelkinEvent evt = new WelkinEvent();
+            evt.CalendarId = calendarId;
+            evt.IsAllDay = true;
+            evt.Day = DateTime.UtcNow.Date;
+            evt.Modality = Constants.DefaultModality;
+            evt.AppointmentType = Constants.DefaultAppointmentType;
+            // TODO: patient ID?
+            
+            return evt;
+        }
+
+        public void SyncFrom(Event outlookEvent)
+        {
+            this.IsAllDay = outlookEvent.IsAllDay.HasValue? outlookEvent.IsAllDay.Value : false;
+            
+            if (this.IsAllDay)
+            {
+                this.Day = DateTime.Parse(outlookEvent.Start.DateTime).Date;
+            }
+            else 
+            {
+                this.Start = DateTime.Parse(outlookEvent.Start.DateTime);
+                this.End = DateTime.Parse(outlookEvent.End.DateTime);
+            }
+        }
+
         [JsonProperty("id")]
         public string Id { get; set; }
 

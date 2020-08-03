@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http;
 using System.Text;
 using Jose;
@@ -107,6 +108,53 @@ namespace OutlookWelkinSyncFunction
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
             return JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
+        }
+
+        public WelkinEvent GetEvent(string eventId)
+        {
+            return this.GetObject<WelkinEvent>(eventId, "calendar_events");
+        }
+
+        private T GetObject<T>(string id, string path, Dictionary<string, string> parameters = null)
+        {
+            string url = $"{config.ApiUrl}{path}/{id}";
+            var client = new RestClient(url);
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
+            {
+                request.AddParameter(kvp.Key, kvp.Value);
+            }
+            var response = client.Execute(request);
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            return JsonConvert.DeserializeObject<T>(data.ToString());
+        }
+
+        public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, bool isNew)
+        {
+            return this.CreateOrUpdateObject(evt, isNew, "calendar_events");
+        }
+
+        public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, bool isNew)
+        {
+            return this.CreateOrUpdateObject(external, isNew, "external_ids");
+        }
+
+        private T CreateOrUpdateObject<T>(T obj, bool isNew, string path)
+        {
+            string url = $"{config.ApiUrl}{path}";
+            var client = new RestClient(url);
+            Method method = isNew? Method.POST : Method.PUT;
+            var request = new RestRequest(method);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            request.AddJsonBody(obj);
+            var response = client.Execute(request);
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            return JsonConvert.DeserializeObject<T>(data.ToString());
         }
     }
 }
