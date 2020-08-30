@@ -14,23 +14,43 @@ namespace OutlookWelkinSyncFunction
             evt.Day = DateTime.UtcNow.Date;
             evt.Modality = Constants.DefaultModality;
             evt.AppointmentType = Constants.DefaultAppointmentType;
-            // TODO: patient ID?
+            evt.PatientId = Environment.GetEnvironmentVariable("WelkinDummyPatientId");
             
             return evt;
         }
 
-        public void SyncFrom(Event outlookEvent)
+        public void SyncWith(Event outlookEvent)
         {
-            this.IsAllDay = outlookEvent.IsAllDay.HasValue? outlookEvent.IsAllDay.Value : false;
-            
-            if (this.IsAllDay)
+            bool keepMine = 
+                (outlookEvent.LastModifiedDateTime == null) || 
+                (this.Updated != null && this.Updated > outlookEvent.LastModifiedDateTime);
+
+            if (keepMine)
             {
-                this.Day = DateTime.Parse(outlookEvent.Start.DateTime).Date;
+                outlookEvent.IsAllDay = this.IsAllDay;
+                if (this.IsAllDay)
+                {
+                    outlookEvent.Start.DateTime = this.Day.Value.ToString("o");
+                }
+                else 
+                {
+                    outlookEvent.Start.DateTime = this.Start.Value.ToString("o");
+                    outlookEvent.End.DateTime = this.End.Value.ToString("o");
+                }
             }
-            else 
+            else
             {
-                this.Start = DateTime.Parse(outlookEvent.Start.DateTime);
-                this.End = DateTime.Parse(outlookEvent.End.DateTime);
+                this.IsAllDay = outlookEvent.IsAllDay.HasValue? outlookEvent.IsAllDay.Value : false;
+                
+                if (this.IsAllDay)
+                {
+                    this.Day = DateTime.Parse(outlookEvent.Start.DateTime).Date;
+                }
+                else 
+                {
+                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime);
+                    this.End = DateTime.Parse(outlookEvent.End.DateTime);
+                }
             }
         }
 
@@ -56,10 +76,10 @@ namespace OutlookWelkinSyncFunction
         public string AppointmentType { get; set; }
 
         [JsonProperty("updated_at")]
-        public DateTime Updated { get; set; }
+        public DateTime? Updated { get; set; }
 
         [JsonProperty("created_at")]
-        public DateTime Created { get; set; }
+        public DateTime? Created { get; set; }
 
         [JsonProperty("start_time")]
         public DateTime? Start { get; set; }

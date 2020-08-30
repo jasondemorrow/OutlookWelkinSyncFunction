@@ -82,19 +82,6 @@ namespace OutlookWelkinSyncFunction
             return JsonConvert.DeserializeObject<WelkinCalendar>(calendar.ToString());
         }
 
-        public IEnumerable<WelkinEvent> GetEventsUpdatedBetween(DateTime start, DateTime end)
-        {
-            string url = $"{config.ApiUrl}calendar_events?page[from]={start.ToString("o")}&page[to]={end.ToString("o")}";
-            var client = new RestClient(url);
-            var request = new RestRequest(Method.GET);
-            request.AddHeader("authorization", "Bearer " + this.token);
-            request.AddHeader("cache-control", "no-cache");
-            var response = client.Execute(request);
-            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            return JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
-        }
-
         public IEnumerable<WelkinEvent> GetEventsUpdatedSince(TimeSpan ago)
         {
             DateTime end = DateTime.UtcNow;
@@ -113,6 +100,11 @@ namespace OutlookWelkinSyncFunction
         public WelkinEvent GetEvent(string eventId)
         {
             return this.GetObject<WelkinEvent>(eventId, "calendar_events");
+        }
+
+        public WelkinExternalId GetExternalId(string externalId)
+        {
+            return this.GetObject<WelkinExternalId>(externalId, "external_ids");
         }
 
         private T GetObject<T>(string id, string path, Dictionary<string, string> parameters = null)
@@ -134,7 +126,7 @@ namespace OutlookWelkinSyncFunction
 
         public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, bool isNew)
         {
-            return this.CreateOrUpdateObject(evt, isNew, "calendar_events");
+            return this.CreateOrUpdateObject(evt, isNew, Constants.CalendarEventResourceName);
         }
 
         public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, bool isNew)

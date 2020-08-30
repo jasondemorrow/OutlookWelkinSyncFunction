@@ -19,21 +19,24 @@ namespace OutlookWelkinSyncFunction
 
             IEnumerable<User> outlookUsers = outlookClient.GetAllUsers();
             IEnumerable<WelkinPractitioner> welkinUsers = welkinClient.GetAllPractitioners();
-            ISet<string> welkinUserNames = new HashSet<string>();
             IDictionary<string, string> welkinUserNamesByCalendarId = new Dictionary<string, string>();
             IDictionary<string, string> welkinCalendarIdsByUserName = new Dictionary<string, string>();
 
-            foreach (WelkinPractitioner welkinUser in welkinUsers)
+            foreach (WelkinPractitioner welkinUser in welkinUsers) // Build mappings of Welkin users to their calendars in Welkin
             {
                 string userName = UserNameFrom(welkinUser.Email);
-                WelkinCalendar calendar = welkinClient.GetCalendarForPractitioner(welkinUser);
-
-                if (string.IsNullOrEmpty(userName) || calendar == null)
+                if (string.IsNullOrEmpty(userName))
                 {
                     continue;
                 }
 
-                welkinUserNames.Add(userName);
+                WelkinCalendar calendar = welkinClient.GetCalendarForPractitioner(welkinUser);
+                if (calendar == null)
+                {
+                    log.LogWarning($"Welkin calendar not found for user {userName}");
+                    continue;
+                }
+
                 welkinUserNamesByCalendarId[calendar.Id] = userName;
                 welkinCalendarIdsByUserName[userName] = calendar.Id;
             }
@@ -48,6 +51,7 @@ namespace OutlookWelkinSyncFunction
 
                 if (string.IsNullOrEmpty(userName))
                 {
+                    log.LogWarning($"Welkin event {welkinEvent.Id} has no known user.");
                     continue;
                 }
 
@@ -64,22 +68,25 @@ namespace OutlookWelkinSyncFunction
             foreach (User user in outlookUsers)
             {
                 string userName = UserNameFrom(user.UserPrincipalName);
-                if (string.IsNullOrEmpty(userName) || !welkinUserNames.Contains(userName))
+                if (string.IsNullOrEmpty(userName) || !welkinCalendarIdsByUserName.ContainsKey(userName))
                 {
+                    log.LogWarning($"Unknown user ({userName}) or missing calendar for user.");
                     continue;
                 }
 
                 // For users in both Welkin and Outlook, sync their recently updated events
                 try
                 {
-                    IEnumerable<Event> recentlyUpdatedOutlookEvents = outlookClient.GetEventsForUserUpdatedSince(user, TimeSpan.FromDays(7), Constants.OutlookExtensionsNamespace);
+                    // First, sync newly update Outlook events for user.
+                    IEnumerable<Event> recentlyUpdatedOutlookEvents = 
+                        outlookClient.GetEventsForUserUpdatedSince(user, historySpan, Constants.OutlookEventExtensionsNamespace);
                     foreach (Event evt in recentlyUpdatedOutlookEvents)
                     {
                         try
                         {
                             WelkinEvent linkedWelkinEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
                             bool isNew = true;
-                            log.LogInformation($"Found newly updated Outlook event '{evt.Subject}' for user {userName}.");
+                            log.LogInformation($"Found newly updated Outlook event '{evt.Id}' for user {userName}.");
 
                             if (evt.Extensions != null) // This Outlook event is already sync'ed with Welkin and needs to be updated there
                             {
@@ -91,17 +98,48 @@ namespace OutlookWelkinSyncFunction
                                 }
                                 else
                                 {
-                                    log.LogError($"Outlook event {evt.Id} missing expected extension data.");
+                                    log.LogError($"Outlook event {evt.Id} for user {userName} is missing expected extension data.");
                                 }
                             }
 
-                            linkedWelkinEvent.SyncFrom(evt);
-                            welkinClient.CreateOrUpdateEvent(linkedWelkinEvent, isNew);
+                            linkedWelkinEvent.SyncWith(evt); // Will set start and end date-times of both events to match whichever event was more recently updated
+                            linkedWelkinEvent = welkinClient.CreateOrUpdateEvent(linkedWelkinEvent, isNew);
+
+                            if (isNew) // Associate new Welkin event with current Outlook event
+                            {
+                                // First by an extension property on the Outlook event
+                                Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
+                                keyValuePairs[Constants.LinkedWelkinEventIdKey] = linkedWelkinEvent.Id;
+                                outlookClient.SetOpenExtensionPropertiesOnEvent(user, evt, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
+                                // Then by an external ID in Welkin
+                                WelkinExternalId welkinExternalId = new WelkinExternalId
+                                {
+                                    Resource = Constants.CalendarEventResourceName,
+                                    ExternalId = evt.Id,
+                                    InternalId = linkedWelkinEvent.Id,
+                                    Namespace = Constants.WelkinEventExtensionNamespace
+                                };
+                                welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId, true);
+                            }
+                            else if (welkinEventsByUserNameThenEventId[userName].ContainsKey(linkedWelkinEvent.Id))
+                            {
+                                // If the existing Welkin event has also been recently updated, we can skip it later
+                                welkinEventsByUserNameThenEventId[userName].Remove(linkedWelkinEvent.Id);
+                            }
+
+                            string newOrExisting = isNew ? "new" : "existing";
+                            log.LogInformation($"Successfully sync'ed Outlook event {evt.Id} with {newOrExisting} Welkin event {linkedWelkinEvent.Id}.");
                         }
                         catch (Exception e)
                         {
                             log.LogError(e, $"While sync'ing Outlook event {evt.Id} for user {userName}.");
                         }
+                    }
+
+                    // Second, sync newly update Welkin events for user
+                    foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
+                    {
+
                     }
                 }
                 catch (Exception e)

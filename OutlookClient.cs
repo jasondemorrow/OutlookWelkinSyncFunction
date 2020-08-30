@@ -19,11 +19,12 @@ namespace OutlookWelkinSyncFunction
         {
             this.config = config;
             this.logger = logger;
-            IConfidentialClientApplication app = ConfidentialClientApplicationBuilder
-                                                    .Create(config.ClientId)
-                                                    .WithClientSecret(config.ClientSecret)
-                                                    .WithAuthority(new Uri(config.Authority))
-                                                    .Build();
+            IConfidentialClientApplication app = 
+                        ConfidentialClientApplicationBuilder
+                            .Create(config.ClientId)
+                            .WithClientSecret(config.ClientSecret)
+                            .WithAuthority(new Uri(config.Authority))
+                            .Build();
                                                     
             string[] scopes = new string[] { $"{config.ApiUrl}.default" }; 
             
@@ -103,12 +104,13 @@ namespace OutlookWelkinSyncFunction
 
         public void SetOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
         {
-            IEventExtensionsCollectionRequest request = this.graphClient
-                                                                .Users[usr.UserPrincipalName]
-                                                                .Calendar
-                                                                .Events[evt.Id]
-                                                                .Extensions
-                                                                .Request();
+            IEventExtensionsCollectionRequest request = 
+                        this.graphClient
+                            .Users[usr.UserPrincipalName]
+                            .Calendar
+                            .Events[evt.Id]
+                            .Extensions
+                            .Request();
             OpenTypeExtension ext = new OpenTypeExtension();
             ext.ExtensionName = extensionsNamespace;
             ext.AdditionalData = keyValuePairs;
