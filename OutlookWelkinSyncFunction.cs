@@ -14,7 +14,7 @@ namespace OutlookWelkinSyncFunction
             log.LogInformation($"Starting Welkin/Outlook events sync at: {DateTime.Now}");
             OutlookClient outlookClient = new OutlookClient(new OutlookConfig(), log);
             WelkinClient welkinClient = new WelkinClient(new WelkinConfig(), log);
-            DateTime lastRun = timerInfo.ScheduleStatus.Last;
+            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-8);
             TimeSpan historySpan = DateTime.UtcNow - lastRun;
 
             IEnumerable<User> outlookUsers = outlookClient.GetAllUsers();
@@ -141,31 +141,34 @@ namespace OutlookWelkinSyncFunction
                         }
                     }
 
-                    // Second, sync newly updated Welkin events for user
-                    foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
+                    // Second, sync newly updated Welkin events for user, if any
+                    if (welkinEventsByUserNameThenEventId.ContainsKey(userName))
                     {
-                        WelkinExternalId externalId = welkinClient.FindExternalMappingFor(evt);
-                        Event linkedOutlookEvent = null;
-
-                        // This Welkin event is already associated with an Outlook event, let's retrieve it
-                        if (externalId != null)
+                        foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
                         {
-                            linkedOutlookEvent = outlookClient.GetEventForUserWithId(user, externalId.ExternalId);
+                            WelkinExternalId externalId = welkinClient.FindExternalMappingFor(evt);
+                            Event linkedOutlookEvent = null;
+
+                            // This Welkin event is already associated with an Outlook event, let's retrieve it
+                            if (externalId != null)
+                            {
+                                linkedOutlookEvent = outlookClient.GetEventForUserWithId(user, externalId.ExternalId);
+                            }
+
+                            string verb = "Retrieved";
+
+                            // There is no associated Outlook event, let's create and link it
+                            if (linkedOutlookEvent == null)
+                            {
+                                linkedOutlookEvent = outlookClient.CreateOutlookEventFromWelkinEvent(user, evt, welkinPractitionerByUserName[userName]);
+                                verb = "Created";
+                            }
+
+                            log.LogInformation($"{verb} Outlook event with ID {linkedOutlookEvent.Id} associated with Welkin event (ID {evt.Id}).");
+
+                            evt.SyncWith(linkedOutlookEvent);
+                            welkinClient.CreateOrUpdateEvent(evt, false);
                         }
-
-                        string verb = "Retrieved";
-
-                        // There is no associated Outlook event, let's create and link it
-                        if (linkedOutlookEvent == null)
-                        {
-                            linkedOutlookEvent = outlookClient.CreateOutlookEventFromWelkinEvent(user, evt, welkinPractitionerByUserName[userName]);
-                            verb = "Created";
-                        }
-
-                        log.LogInformation($"{verb} Outlook event with ID {linkedOutlookEvent.Id} associated with Welkin event (ID {evt.Id}).");
-
-                        evt.SyncWith(linkedOutlookEvent);
-                        welkinClient.CreateOrUpdateEvent(evt, false);
                     }
                 }
                 catch (Exception e)
