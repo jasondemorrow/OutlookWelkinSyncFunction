@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using System.Net.Http.Headers;
 using System.Threading.Tasks;
 using Microsoft.Extensions.Logging;
@@ -77,6 +78,50 @@ namespace OutlookWelkinSyncFunction
                     .GetResult();
         }
 
+        public Event CreateOutlookEventFromWelkinEvent(User outlookUser, WelkinEvent welkinEvent, WelkinPractitioner welkinUser)
+        {
+            // Create and associate a new Outlook event
+            Event outlookEvent = new Event
+            {
+                Subject = "Placeholder for appointment in Welkin",
+                Body = new ItemBody
+                {
+                    ContentType = BodyType.Html,
+                    Content = $"See your Welkin calendar (user {welkinUser.Email}) for details."
+                },
+                IsAllDay = welkinEvent.IsAllDay,
+                Start = new DateTimeTimeZone
+                {
+                    DateTime = welkinEvent.IsAllDay 
+                        ? welkinEvent.Day.Value.Date.ToString() // Midnight day of
+                        : welkinEvent.Start.Value.ToString(), // Will be UTC
+                    TimeZone = welkinUser.Timezone
+                },
+                End = new DateTimeTimeZone
+                {
+                    DateTime = welkinEvent.IsAllDay 
+                        ? welkinEvent.Day.Value.Date.AddDays(1).ToString() // Midnight day after
+                        : welkinEvent.Start.Value.ToString(), // Will be UTC
+                    TimeZone = welkinUser.Timezone
+                }
+            };
+
+            Event createdEvent = this.graphClient
+                                        .Users[outlookUser.UserPrincipalName]
+                                        .Calendar
+                                        .Events
+                                        .Request()
+                                        .AddAsync(outlookEvent)
+                                        .GetAwaiter()
+                                        .GetResult();
+
+            Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
+            keyValuePairs[Constants.LinkedWelkinEventIdKey] = welkinEvent.Id;
+            this.SetOpenExtensionPropertiesOnEvent(outlookUser, createdEvent, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
+
+            return createdEvent;
+        }
+
         public IEnumerable<Event> GetEventsForUserUpdatedSince(User user, TimeSpan ago, string extensionsNamespace = null)
         {
             DateTime end = DateTime.UtcNow;
@@ -102,6 +147,26 @@ namespace OutlookWelkinSyncFunction
                     .GetResult();
         }
 
+        public Event GetEventForUserWithId(User user, string id, string extensionsNamespace = null)
+        {
+            IEventRequest request = 
+                        this.graphClient
+                            .Users[user.UserPrincipalName]
+                            .Calendar
+                            .Events[id]
+                            .Request();
+
+            if (extensionsNamespace != null)
+            {
+                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+            }
+            
+            return request
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult();
+        }
+
         public void SetOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
         {
             IEventExtensionsCollectionRequest request = 
@@ -114,8 +179,9 @@ namespace OutlookWelkinSyncFunction
             OpenTypeExtension ext = new OpenTypeExtension();
             ext.ExtensionName = extensionsNamespace;
             ext.AdditionalData = keyValuePairs;
+            string parameterString = (keyValuePairs != null) ? string.Join(", ", keyValuePairs.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
 
-            request.AddAsync(ext).GetAwaiter().OnCompleted(() => this.logger.LogInformation($"Successfully added an extension with values {keyValuePairs}."));
+            request.AddAsync(ext).GetAwaiter().OnCompleted(() => this.logger.LogInformation($"Successfully added an extension with values {parameterString}."));
         }
     }
 }

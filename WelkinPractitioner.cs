@@ -16,5 +16,8 @@ namespace OutlookWelkinSyncFunction
 
         [JsonProperty("email")]
         public string Email { get; set; }
+
+        [JsonProperty("timezone")]
+        public string Timezone { get; set; }
     }
 }

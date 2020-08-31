@@ -109,19 +109,28 @@ namespace OutlookWelkinSyncFunction
 
         private T GetObject<T>(string id, string path, Dictionary<string, string> parameters = null)
         {
-            string url = $"{config.ApiUrl}{path}/{id}";
-            var client = new RestClient(url);
-            var request = new RestRequest(Method.GET);
-            request.AddHeader("authorization", "Bearer " + this.token);
-            request.AddHeader("cache-control", "no-cache");
-            foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
+            try
             {
-                request.AddParameter(kvp.Key, kvp.Value);
+                string url = $"{config.ApiUrl}{path}/{id}";
+                var client = new RestClient(url);
+                var request = new RestRequest(Method.GET);
+                request.AddHeader("authorization", "Bearer " + this.token);
+                request.AddHeader("cache-control", "no-cache");
+                foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
+                {
+                    request.AddParameter(kvp.Key, kvp.Value);
+                }
+                var response = client.Execute(request);
+                JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+                JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+                return JsonConvert.DeserializeObject<T>(data.ToString());
             }
-            var response = client.Execute(request);
-            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            return JsonConvert.DeserializeObject<T>(data.ToString());
+            catch (Exception e)
+            {
+                string parameterString = (parameters != null) ? string.Join(", ", parameters.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
+                this.logger.LogError($"While retrieving object of type {typeof(T).Name} with id {id}, path {path}, and parameters {parameterString}", e);
+                return default(T);
+            }
         }
 
         public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, bool isNew)
@@ -147,6 +156,42 @@ namespace OutlookWelkinSyncFunction
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
             return JsonConvert.DeserializeObject<T>(data.ToString());
+        }
+
+        public WelkinExternalId FindExternalMappingFor(WelkinEvent internalEvent)
+        {
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["namespace"] = Constants.WelkinEventExtensionNamespace;
+            parameters["resource"] = Constants.CalendarEventResourceName;
+            parameters["welkin_id"] = internalEvent.Id;
+            IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>("external_ids", parameters);
+            return foundLinks.FirstOrDefault();
+        }
+
+        private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
+        {
+            try
+            {
+                string url = $"{config.ApiUrl}{path}";
+                var client = new RestClient(url);
+                var request = new RestRequest(Method.GET);
+                request.AddHeader("authorization", "Bearer " + this.token);
+                request.AddHeader("cache-control", "no-cache");
+                foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
+                {
+                    request.AddParameter(kvp.Key, kvp.Value);
+                }
+                var response = client.Execute(request);
+                JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+                JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+                return JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
+            }
+            catch (Exception e)
+            {
+                string parameterString = (parameters != null) ? string.Join(", ", parameters.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
+                this.logger.LogError($"While retrieving object of type {typeof(T).Name} with path {path}, and parameters {parameterString}", e);
+                return new List<T>();
+            }
         }
     }
 }

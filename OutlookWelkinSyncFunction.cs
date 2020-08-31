@@ -21,6 +21,7 @@ namespace OutlookWelkinSyncFunction
             IEnumerable<WelkinPractitioner> welkinUsers = welkinClient.GetAllPractitioners();
             IDictionary<string, string> welkinUserNamesByCalendarId = new Dictionary<string, string>();
             IDictionary<string, string> welkinCalendarIdsByUserName = new Dictionary<string, string>();
+            IDictionary<string, WelkinPractitioner> welkinPractitionerByUserName = new Dictionary<string, WelkinPractitioner>();
 
             foreach (WelkinPractitioner welkinUser in welkinUsers) // Build mappings of Welkin users to their calendars in Welkin
             {
@@ -39,6 +40,7 @@ namespace OutlookWelkinSyncFunction
 
                 welkinUserNamesByCalendarId[calendar.Id] = userName;
                 welkinCalendarIdsByUserName[userName] = calendar.Id;
+                welkinPractitionerByUserName[userName] = welkinUser;
             }
 
             IEnumerable<WelkinEvent> welkinEvents = welkinClient.GetEventsUpdatedSince(historySpan);
@@ -68,9 +70,9 @@ namespace OutlookWelkinSyncFunction
             foreach (User user in outlookUsers)
             {
                 string userName = UserNameFrom(user.UserPrincipalName);
-                if (string.IsNullOrEmpty(userName) || !welkinCalendarIdsByUserName.ContainsKey(userName))
+                if (string.IsNullOrEmpty(userName) || !welkinCalendarIdsByUserName.ContainsKey(userName) || !welkinPractitionerByUserName.ContainsKey(userName))
                 {
-                    log.LogWarning($"Unknown user ({userName}) or missing calendar for user.");
+                    log.LogWarning($"Unknown user ({userName}) or missing calendar or practitioner for user.");
                     continue;
                 }
 
@@ -125,6 +127,9 @@ namespace OutlookWelkinSyncFunction
                             {
                                 // If the existing Welkin event has also been recently updated, we can skip it later
                                 welkinEventsByUserNameThenEventId[userName].Remove(linkedWelkinEvent.Id);
+                                log.LogInformation($@"Welkin event with ID {linkedWelkinEvent.Id} has recently been updated, 
+                                                        but will be skipped since its corresponding Outlook event with ID 
+                                                        {evt.Id} has also been recently updated and therefore sync'ed.");
                             }
 
                             string newOrExisting = isNew ? "new" : "existing";
@@ -136,10 +141,31 @@ namespace OutlookWelkinSyncFunction
                         }
                     }
 
-                    // Second, sync newly update Welkin events for user
+                    // Second, sync newly updated Welkin events for user
                     foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
                     {
+                        WelkinExternalId externalId = welkinClient.FindExternalMappingFor(evt);
+                        Event linkedOutlookEvent = null;
 
+                        // This Welkin event is already associated with an Outlook event, let's retrieve it
+                        if (externalId != null)
+                        {
+                            linkedOutlookEvent = outlookClient.GetEventForUserWithId(user, externalId.ExternalId);
+                        }
+
+                        string verb = "Retrieved";
+
+                        // There is no associated Outlook event, let's create and link it
+                        if (linkedOutlookEvent == null)
+                        {
+                            linkedOutlookEvent = outlookClient.CreateOutlookEventFromWelkinEvent(user, evt, welkinPractitionerByUserName[userName]);
+                            verb = "Created";
+                        }
+
+                        log.LogInformation($"{verb} Outlook event with ID {linkedOutlookEvent.Id} associated with Welkin event (ID {evt.Id}).");
+
+                        evt.SyncWith(linkedOutlookEvent);
+                        welkinClient.CreateOrUpdateEvent(evt, false);
                     }
                 }
                 catch (Exception e)
