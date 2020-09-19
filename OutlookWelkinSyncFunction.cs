@@ -17,6 +17,7 @@ namespace OutlookWelkinSyncFunction
             DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-8);
             TimeSpan historySpan = DateTime.UtcNow - lastRun;
 
+            // TODO: Obviously the following doesn't scale well. Factoring this out and adding pagination will help.
             IEnumerable<User> outlookUsers = outlookClient.GetAllUsers();
             IEnumerable<WelkinPractitioner> welkinUsers = welkinClient.GetAllPractitioners();
             IDictionary<string, string> welkinUserNamesByCalendarId = new Dictionary<string, string>();
@@ -76,64 +77,52 @@ namespace OutlookWelkinSyncFunction
                     continue;
                 }
 
-                // For users in both Welkin and Outlook, sync their recently updated events
+                // For users with accounts in both Welkin and Outlook, sync their recently updated events
                 try
                 {
-                    // First, sync newly update Outlook events for user.
+                    EventLink eventLink = new EventLink(null, null, outlookClient, welkinClient, user, welkinPractitionerByUserName[userName], log);
+                    // First, sync newly updated Outlook events for user.
                     IEnumerable<Event> recentlyUpdatedOutlookEvents = 
                         outlookClient.GetEventsForUserUpdatedSince(user, historySpan, Constants.OutlookEventExtensionsNamespace);
                     foreach (Event evt in recentlyUpdatedOutlookEvents)
                     {
+                        log.LogInformation($"Found newly updated Outlook event '{evt.Id}' for user {userName}.");
+                        eventLink.Clear();
+
                         try
                         {
-                            WelkinEvent linkedWelkinEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
-                            bool isNew = true;
-                            log.LogInformation($"Found newly updated Outlook event '{evt.Id}' for user {userName}.");
-
-                            if (evt.Extensions != null) // This Outlook event is already sync'ed with Welkin and needs to be updated there
+                            eventLink.TargetOutlookEvent = evt;
+                            bool createdPlaceholderWelkinEvent = false;
+                            if (!eventLink.Exists(EventLink.Direction.OutlookToWelkin))
                             {
-                                if (evt.Extensions.AdditionalData != null && evt.Extensions.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
-                                {
-                                    string linkedEventId = evt.Extensions.AdditionalData[Constants.LinkedWelkinEventIdKey].ToString();
-                                    linkedWelkinEvent = welkinClient.GetEvent(linkedEventId);
-                                    isNew = false;
-                                }
-                                else
-                                {
-                                    log.LogError($"Outlook event {evt.Id} for user {userName} is missing expected extension data.");
-                                }
+                                eventLink.TargetWelkinEvent = 
+                                    welkinClient.CreateOrUpdateEvent(
+                                        WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]), 
+                                        true);
+                                createdPlaceholderWelkinEvent = true;
+                                eventLink.Ensure(EventLink.Direction.OutlookToWelkin);
                             }
 
-                            linkedWelkinEvent.SyncWith(evt); // Will set start and end date-times of both events to match whichever event was more recently updated
-                            linkedWelkinEvent = welkinClient.CreateOrUpdateEvent(linkedWelkinEvent, isNew);
-
-                            if (isNew) // Associate new Welkin event with current Outlook event
+                            bool welkinEventNeedsUpdate = !createdPlaceholderWelkinEvent && eventLink.LinkedWelkinEvent.SyncWith(evt);
+                            if (welkinEventNeedsUpdate)
                             {
-                                // First by an extension property on the Outlook event
-                                Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
-                                keyValuePairs[Constants.LinkedWelkinEventIdKey] = linkedWelkinEvent.Id;
-                                outlookClient.SetOpenExtensionPropertiesOnEvent(user, evt, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
-                                // Then by an external ID in Welkin
-                                WelkinExternalId welkinExternalId = new WelkinExternalId
-                                {
-                                    Resource = Constants.CalendarEventResourceName,
-                                    ExternalId = evt.Id,
-                                    InternalId = linkedWelkinEvent.Id,
-                                    Namespace = Constants.WelkinEventExtensionNamespace
-                                };
-                                welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId, true);
+                                welkinClient.CreateOrUpdateEvent(eventLink.LinkedWelkinEvent, false);
                             }
-                            else if (welkinEventsByUserNameThenEventId[userName].ContainsKey(linkedWelkinEvent.Id))
+                            else if (!createdPlaceholderWelkinEvent) // Outlook event needs update
+                            {
+                                outlookClient.Update(user, evt);
+                            }
+                            
+                            if (welkinEventsByUserNameThenEventId[userName].ContainsKey(eventLink.LinkedWelkinEvent.Id))
                             {
                                 // If the existing Welkin event has also been recently updated, we can skip it later
-                                welkinEventsByUserNameThenEventId[userName].Remove(linkedWelkinEvent.Id);
-                                log.LogInformation($@"Welkin event with ID {linkedWelkinEvent.Id} has recently been updated, 
+                                welkinEventsByUserNameThenEventId[userName].Remove(eventLink.LinkedWelkinEvent.Id);
+                                log.LogInformation($@"Welkin event with ID {eventLink.LinkedWelkinEvent.Id} has recently been updated, 
                                                         but will be skipped since its corresponding Outlook event with ID 
                                                         {evt.Id} has also been recently updated and therefore sync'ed.");
                             }
 
-                            string newOrExisting = isNew ? "new" : "existing";
-                            log.LogInformation($"Successfully sync'ed Outlook event {evt.Id} with {newOrExisting} Welkin event {linkedWelkinEvent.Id}.");
+                            log.LogInformation($"Successfully sync'ed Outlook event {evt.Id} with Welkin event {eventLink.LinkedWelkinEvent.Id}.");
                         }
                         catch (Exception e)
                         {
@@ -146,28 +135,31 @@ namespace OutlookWelkinSyncFunction
                     {
                         foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
                         {
-                            WelkinExternalId externalId = welkinClient.FindExternalMappingFor(evt);
-                            Event linkedOutlookEvent = null;
+                            log.LogInformation($"Found newly updated Welkin event '{evt.Id}' for user {userName}.");
+                            eventLink.Clear();
 
-                            // This Welkin event is already associated with an Outlook event, let's retrieve it
-                            if (externalId != null)
+                            eventLink.TargetWelkinEvent = evt;
+                            bool createdPlaceholderOutlookEvent = false;
+                            if (!eventLink.Exists(EventLink.Direction.WelkinToOutlook))
                             {
-                                linkedOutlookEvent = outlookClient.GetEventForUserWithId(user, externalId.ExternalId);
+                                eventLink.TargetOutlookEvent = 
+                                    outlookClient.CreateOutlookEventFromWelkinEvent(user, evt, welkinPractitionerByUserName[userName]);
+                                createdPlaceholderOutlookEvent = true;
+                                eventLink.Ensure(EventLink.Direction.WelkinToOutlook);
                             }
 
-                            string verb = "Retrieved";
+                            log.LogInformation($"Outlook event with ID {eventLink.LinkedOutlookEvent.Id} associated with Welkin event {evt.Id}.");
 
-                            // There is no associated Outlook event, let's create and link it
-                            if (linkedOutlookEvent == null)
+                            if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
-                                linkedOutlookEvent = outlookClient.CreateOutlookEventFromWelkinEvent(user, evt, welkinPractitionerByUserName[userName]);
-                                verb = "Created";
+                                welkinClient.CreateOrUpdateEvent(evt, false);
+                            }
+                            else if (!createdPlaceholderOutlookEvent)
+                            {
+                                outlookClient.Update(user, eventLink.LinkedOutlookEvent);
                             }
 
-                            log.LogInformation($"{verb} Outlook event with ID {linkedOutlookEvent.Id} associated with Welkin event (ID {evt.Id}).");
-
-                            evt.SyncWith(linkedOutlookEvent);
-                            welkinClient.CreateOrUpdateEvent(evt, false);
+                            log.LogInformation($"Successfully sync'ed Welkin event {evt.Id} with Outlook event {eventLink.LinkedOutlookEvent.Id}.");
                         }
                     }
                 }

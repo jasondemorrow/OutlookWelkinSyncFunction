@@ -145,17 +145,25 @@ namespace OutlookWelkinSyncFunction
 
         private T CreateOrUpdateObject<T>(T obj, bool isNew, string path)
         {
-            string url = $"{config.ApiUrl}{path}";
-            var client = new RestClient(url);
-            Method method = isNew? Method.POST : Method.PUT;
-            var request = new RestRequest(method);
-            request.AddHeader("authorization", "Bearer " + this.token);
-            request.AddHeader("cache-control", "no-cache");
-            request.AddJsonBody(obj);
-            var response = client.Execute(request);
-            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            return JsonConvert.DeserializeObject<T>(data.ToString());
+            try
+            {
+                string url = $"{config.ApiUrl}{path}";
+                var client = new RestClient(url);
+                Method method = isNew? Method.POST : Method.PUT;
+                var request = new RestRequest(method);
+                request.AddHeader("authorization", "Bearer " + this.token);
+                request.AddHeader("cache-control", "no-cache");
+                request.AddJsonBody(obj);
+                var response = client.Execute(request);
+                JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+                JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+                return JsonConvert.DeserializeObject<T>(data.ToString());
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError($"While updating object of type {typeof(T).Name} at path {path}", e);
+                return default(T);
+            }
         }
 
         public WelkinExternalId FindExternalMappingFor(WelkinEvent internalEvent)
@@ -189,7 +197,7 @@ namespace OutlookWelkinSyncFunction
             catch (Exception e)
             {
                 string parameterString = (parameters != null) ? string.Join(", ", parameters.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
-                this.logger.LogError($"While retrieving object of type {typeof(T).Name} with path {path}, and parameters {parameterString}", e);
+                this.logger.LogError($"While searching for object of type {typeof(T).Name} with path {path}, and parameters {parameterString}", e);
                 return new List<T>();
             }
         }

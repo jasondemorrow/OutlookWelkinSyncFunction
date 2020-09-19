@@ -78,6 +78,18 @@ namespace OutlookWelkinSyncFunction
                     .GetResult();
         }
 
+        public Event Update(User outlookUser, Event evt)
+        {
+            return this.graphClient
+                        .Users[outlookUser.UserPrincipalName]
+                        .Calendar
+                        .Events[evt.Id]
+                        .Request()
+                        .UpdateAsync(evt)
+                        .GetAwaiter()
+                        .GetResult();
+        }
+
         public Event CreateOutlookEventFromWelkinEvent(User outlookUser, WelkinEvent welkinEvent, WelkinPractitioner welkinUser)
         {
             // Create and associate a new Outlook event

@@ -19,7 +19,7 @@ namespace OutlookWelkinSyncFunction
             return evt;
         }
 
-        public void SyncWith(Event outlookEvent)
+        public bool SyncWith(Event outlookEvent)
         {
             bool keepMine = 
                 (outlookEvent.LastModifiedDateTime == null) || 
@@ -52,6 +52,8 @@ namespace OutlookWelkinSyncFunction
                     this.End = DateTime.Parse(outlookEvent.End.DateTime);
                 }
             }
+
+            return !keepMine; // was changed
         }
 
         [JsonProperty("id")]
