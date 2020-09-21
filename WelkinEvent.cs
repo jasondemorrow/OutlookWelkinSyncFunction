@@ -91,6 +91,7 @@ namespace OutlookWelkinSyncFunction
 
         // If this is an all-day event, this is the date it's on
         [JsonProperty("day")]
+        [JsonConverter(typeof(JsonDateFormatConverter), "yyyy-MM-dd")]
         public DateTime? Day { get; set; }
     }
 }

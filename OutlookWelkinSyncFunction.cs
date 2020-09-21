@@ -95,10 +95,9 @@ namespace OutlookWelkinSyncFunction
                             bool createdPlaceholderWelkinEvent = false;
                             if (!eventLink.Exists(EventLink.Direction.OutlookToWelkin))
                             {
-                                eventLink.TargetWelkinEvent = 
-                                    welkinClient.CreateOrUpdateEvent(
-                                        WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]), 
-                                        true);
+                                WelkinEvent placeholderEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
+                                placeholderEvent.SyncWith(evt);
+                                eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent, true);
                                 createdPlaceholderWelkinEvent = true;
                                 eventLink.Ensure(EventLink.Direction.OutlookToWelkin);
                             }

@@ -121,6 +121,10 @@ namespace OutlookWelkinSyncFunction
                     request.AddParameter(kvp.Key, kvp.Value);
                 }
                 var response = client.Execute(request);
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                }
                 JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
                 JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
                 return JsonConvert.DeserializeObject<T>(data.ToString());
@@ -153,8 +157,13 @@ namespace OutlookWelkinSyncFunction
                 var request = new RestRequest(method);
                 request.AddHeader("authorization", "Bearer " + this.token);
                 request.AddHeader("cache-control", "no-cache");
-                request.AddJsonBody(obj);
+                //request.AddJsonBody(obj);
+                request.AddParameter("application/json", JsonConvert.SerializeObject(obj), ParameterType.RequestBody);
                 var response = client.Execute(request);
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                }
                 JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
                 JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
                 return JsonConvert.DeserializeObject<T>(data.ToString());
@@ -190,6 +199,10 @@ namespace OutlookWelkinSyncFunction
                     request.AddParameter(kvp.Key, kvp.Value);
                 }
                 var response = client.Execute(request);
+                if (response.StatusCode != System.Net.HttpStatusCode.OK)
+                {
+                    throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                }
                 JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
                 JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
                 return JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
