@@ -34,14 +34,14 @@ namespace OutlookWelkinSyncFunction
         {
                 if (outlookEvent.Extensions?.AdditionalData == null || !outlookEvent.Extensions.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
                 {
-                    log.LogInformation($"No linked Welkin event for Outlook event {outlookEvent.Id}");
+                    log.LogInformation($"No linked Welkin event for Outlook event {outlookEvent.ICalUId}");
                     return null;
                 }
 
                 string linkedEventId = outlookEvent.Extensions.AdditionalData[Constants.LinkedWelkinEventIdKey].ToString();
                 if (string.IsNullOrEmpty(linkedEventId))
                 {
-                    log.LogInformation($"Null or empty linked Welkin event ID for Outlook event {outlookEvent.Id}");
+                    log.LogInformation($"Null or empty linked Welkin event ID for Outlook event {outlookEvent.ICalUId}");
                     return null;
                 }
 
@@ -79,7 +79,7 @@ namespace OutlookWelkinSyncFunction
                     return false;
                 }
 
-                this.log.LogInformation($"Found linked Welkin ID for Outlook event {this.TargetOutlookEvent.Id}: {linkedEventId}.");
+                this.log.LogInformation($"Found linked Welkin ID for Outlook event {this.TargetOutlookEvent.ICalUId}: {linkedEventId}.");
                 LinkedWelkinEvent = welkinClient.GetEvent(linkedEventId);
                 if (LinkedWelkinEvent == null || (this.TargetWelkinEvent != null && !linkedEventId.Equals(this.TargetWelkinEvent.Id)))
                 {
@@ -97,10 +97,11 @@ namespace OutlookWelkinSyncFunction
                 }
 
                 this.log.LogInformation($"Found linked Outlook ID for Welkin event {this.TargetWelkinEvent.Id}: {externalId.ExternalId}.");
-                LinkedOutlookEvent = outlookClient.GetEventForUserWithId(this.outlookUser, externalId.ExternalId);
-                if (string.IsNullOrEmpty(LinkedOutlookEvent?.Id) || (this.TargetOutlookEvent != null && !LinkedOutlookEvent.Id.Equals(this.TargetOutlookEvent.Id)))
+                LinkedOutlookEvent = outlookClient.GetEventForUserWithICalId(this.outlookUser, externalId.ExternalId);
+                if (string.IsNullOrEmpty(LinkedOutlookEvent?.ICalUId) || 
+                    (this.TargetOutlookEvent != null && !LinkedOutlookEvent.ICalUId.Equals(this.TargetOutlookEvent.ICalUId)))
                 {
-                    this.log.LogInformation($"Retrieved linked Outlook event {LinkedOutlookEvent?.Id}, which was not expected.");
+                    this.log.LogInformation($"Retrieved linked Outlook event {LinkedOutlookEvent?.ICalUId}, which was not expected.");
                     return false;
                 }
             }
@@ -120,7 +121,7 @@ namespace OutlookWelkinSyncFunction
                     this.outlookUser, this.TargetOutlookEvent, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
                 this.LinkedWelkinEvent = this.TargetWelkinEvent;
                 this.log.LogInformation(
-                    $"Successfully created link from Outlook event {this.TargetOutlookEvent.Id} to Welkin event {this.TargetWelkinEvent.Id}");
+                    $"Successfully created link from Outlook event {this.TargetOutlookEvent.ICalUId} to Welkin event {this.TargetWelkinEvent.Id}");
             }
 
             if (direction.HasFlag(Direction.WelkinToOutlook) && !this.Exists(Direction.WelkinToOutlook))
@@ -128,17 +129,17 @@ namespace OutlookWelkinSyncFunction
                 WelkinExternalId welkinExternalId = new WelkinExternalId
                 {
                     Resource = Constants.CalendarEventResourceName,
-                    ExternalId = this.TargetOutlookEvent.Id,
+                    ExternalId = this.TargetOutlookEvent.ICalUId,
                     InternalId = this.TargetWelkinEvent.Id,
                     Namespace = Constants.WelkinEventExtensionNamespace
                 };
                 welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId, true);
 
-                if (welkinExternalId?.Id != null && welkinExternalId.Id.Equals(this.TargetOutlookEvent.Id))
+                if (welkinExternalId?.Id != null && welkinExternalId.Id.Equals(this.TargetOutlookEvent.ICalUId))
                 {
                     this.LinkedOutlookEvent = this.TargetOutlookEvent;
                     this.log.LogInformation(
-                        $"Successfully created link from Welkin event {this.TargetWelkinEvent.Id} to Outlook event {this.TargetOutlookEvent.Id}");
+                        $"Successfully created link from Welkin event {this.TargetWelkinEvent.Id} to Outlook event {this.TargetOutlookEvent.ICalUId}");
                 }
             }
         }

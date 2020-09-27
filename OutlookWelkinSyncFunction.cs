@@ -14,7 +14,7 @@ namespace OutlookWelkinSyncFunction
             log.LogInformation($"Starting Welkin/Outlook events sync at: {DateTime.Now}");
             OutlookClient outlookClient = new OutlookClient(new OutlookConfig(), log);
             WelkinClient welkinClient = new WelkinClient(new WelkinConfig(), log);
-            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-8);
+            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-24);
             TimeSpan historySpan = DateTime.UtcNow - lastRun;
 
             // TODO: Obviously the following doesn't scale well. Factoring this out and adding pagination will help.
@@ -86,7 +86,7 @@ namespace OutlookWelkinSyncFunction
                         outlookClient.GetEventsForUserUpdatedSince(user, historySpan, Constants.OutlookEventExtensionsNamespace);
                     foreach (Event evt in recentlyUpdatedOutlookEvents)
                     {
-                        log.LogInformation($"Found newly updated Outlook event '{evt.Id}' for user {userName}.");
+                        log.LogInformation($"Found newly updated Outlook event '{evt.ICalUId}' for user {userName}.");
                         eventLink.Clear();
 
                         try
@@ -95,11 +95,23 @@ namespace OutlookWelkinSyncFunction
                             bool createdPlaceholderWelkinEvent = false;
                             if (!eventLink.Exists(EventLink.Direction.OutlookToWelkin))
                             {
-                                WelkinEvent placeholderEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
-                                placeholderEvent.SyncWith(evt);
-                                eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent, true);
-                                createdPlaceholderWelkinEvent = true;
-                                eventLink.Ensure(EventLink.Direction.OutlookToWelkin);
+                                try
+                                {
+                                    WelkinEvent placeholderEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
+                                    placeholderEvent.SyncWith(evt);
+                                    eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent, true);
+                                    createdPlaceholderWelkinEvent = (eventLink.TargetWelkinEvent != null);
+                                    eventLink.Ensure(EventLink.Direction.OutlookToWelkin);
+                                }
+                                catch (Exception e)
+                                {
+                                    log.LogError($"While ensuring Outlook to Welkin link for Outlook event {evt.ICalUId}.", e);
+                                    if (createdPlaceholderWelkinEvent)
+                                    {
+                                        welkinClient.DeleteEvent(eventLink.TargetWelkinEvent);
+                                        eventLink.TargetWelkinEvent = null;
+                                    }
+                                }
                             }
 
                             bool welkinEventNeedsUpdate = !createdPlaceholderWelkinEvent && eventLink.LinkedWelkinEvent.SyncWith(evt);
@@ -118,14 +130,14 @@ namespace OutlookWelkinSyncFunction
                                 welkinEventsByUserNameThenEventId[userName].Remove(eventLink.LinkedWelkinEvent.Id);
                                 log.LogInformation($@"Welkin event with ID {eventLink.LinkedWelkinEvent.Id} has recently been updated, 
                                                         but will be skipped since its corresponding Outlook event with ID 
-                                                        {evt.Id} has also been recently updated and therefore sync'ed.");
+                                                        {evt.ICalUId} has also been recently updated and therefore sync'ed.");
                             }
 
-                            log.LogInformation($"Successfully sync'ed Outlook event {evt.Id} with Welkin event {eventLink.LinkedWelkinEvent.Id}.");
+                            log.LogInformation($"Successfully sync'ed Outlook event {evt.ICalUId} with Welkin event {eventLink.LinkedWelkinEvent.Id}.");
                         }
                         catch (Exception e)
                         {
-                            log.LogError(e, $"While sync'ing Outlook event {evt.Id} for user {userName}.");
+                            log.LogError(e, $"While sync'ing Outlook event {evt.ICalUId} for user {userName}.");
                         }
                     }
 
@@ -147,7 +159,7 @@ namespace OutlookWelkinSyncFunction
                                 eventLink.Ensure(EventLink.Direction.WelkinToOutlook);
                             }
 
-                            log.LogInformation($"Outlook event with ID {eventLink.LinkedOutlookEvent.Id} associated with Welkin event {evt.Id}.");
+                            log.LogInformation($"Outlook event with ID {eventLink.LinkedOutlookEvent.ICalUId} associated with Welkin event {evt.Id}.");
 
                             if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
@@ -158,7 +170,7 @@ namespace OutlookWelkinSyncFunction
                                 outlookClient.Update(user, eventLink.LinkedOutlookEvent);
                             }
 
-                            log.LogInformation($"Successfully sync'ed Welkin event {evt.Id} with Outlook event {eventLink.LinkedOutlookEvent.Id}.");
+                            log.LogInformation($"Successfully sync'ed Welkin event {evt.Id} with Outlook event {eventLink.LinkedOutlookEvent.ICalUId}.");
                         }
                     }
                 }

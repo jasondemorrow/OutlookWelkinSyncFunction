@@ -109,37 +109,33 @@ namespace OutlookWelkinSyncFunction
 
         private T GetObject<T>(string id, string path, Dictionary<string, string> parameters = null)
         {
-            try
+            string url = $"{config.ApiUrl}{path}/{id}";
+            var client = new RestClient(url);
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
-                string url = $"{config.ApiUrl}{path}/{id}";
-                var client = new RestClient(url);
-                var request = new RestRequest(Method.GET);
-                request.AddHeader("authorization", "Bearer " + this.token);
-                request.AddHeader("cache-control", "no-cache");
-                foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
-                {
-                    request.AddParameter(kvp.Key, kvp.Value);
-                }
-                var response = client.Execute(request);
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
-                }
-                JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-                JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-                return JsonConvert.DeserializeObject<T>(data.ToString());
+                request.AddParameter(kvp.Key, kvp.Value);
             }
-            catch (Exception e)
+            var response = client.Execute(request);
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                string parameterString = (parameters != null) ? string.Join(", ", parameters.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
-                this.logger.LogError($"While retrieving object of type {typeof(T).Name} with id {id}, path {path}, and parameters {parameterString}", e);
-                return default(T);
+                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
             }
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            return JsonConvert.DeserializeObject<T>(data.ToString());
         }
 
         public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, bool isNew)
         {
             return this.CreateOrUpdateObject(evt, isNew, Constants.CalendarEventResourceName);
+        }
+
+        public void DeleteEvent(WelkinEvent evt)
+        {
+            this.DeleteObject(evt.Id, Constants.CalendarEventResourceName);
         }
 
         public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, bool isNew)
@@ -149,29 +145,35 @@ namespace OutlookWelkinSyncFunction
 
         private T CreateOrUpdateObject<T>(T obj, bool isNew, string path)
         {
-            try
+            string url = $"{config.ApiUrl}{path}";
+            var client = new RestClient(url);
+            Method method = isNew? Method.POST : Method.PUT;
+            var request = new RestRequest(method);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            request.AddParameter("application/json", JsonConvert.SerializeObject(obj), ParameterType.RequestBody);
+            var response = client.Execute(request);
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                string url = $"{config.ApiUrl}{path}";
-                var client = new RestClient(url);
-                Method method = isNew? Method.POST : Method.PUT;
-                var request = new RestRequest(method);
-                request.AddHeader("authorization", "Bearer " + this.token);
-                request.AddHeader("cache-control", "no-cache");
-                //request.AddJsonBody(obj);
-                request.AddParameter("application/json", JsonConvert.SerializeObject(obj), ParameterType.RequestBody);
-                var response = client.Execute(request);
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
-                }
-                JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-                JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-                return JsonConvert.DeserializeObject<T>(data.ToString());
+                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
             }
-            catch (Exception e)
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JObject data = result.First.ToObject<JProperty>().Value.ToObject<JObject>();
+            return JsonConvert.DeserializeObject<T>(data.ToString());
+        }
+
+        private void DeleteObject(string id, string path)
+        {
+            string url = $"{config.ApiUrl}{path}/{id}";
+            var client = new RestClient(url);
+            Method method = Method.DELETE;
+            var request = new RestRequest(method);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            var response = client.Execute(request);
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                this.logger.LogError($"While updating object of type {typeof(T).Name} at path {path}", e);
-                return default(T);
+                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
             }
         }
 
@@ -187,32 +189,23 @@ namespace OutlookWelkinSyncFunction
 
         private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
         {
-            try
+            string url = $"{config.ApiUrl}{path}";
+            var client = new RestClient(url);
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
-                string url = $"{config.ApiUrl}{path}";
-                var client = new RestClient(url);
-                var request = new RestRequest(Method.GET);
-                request.AddHeader("authorization", "Bearer " + this.token);
-                request.AddHeader("cache-control", "no-cache");
-                foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
-                {
-                    request.AddParameter(kvp.Key, kvp.Value);
-                }
-                var response = client.Execute(request);
-                if (response.StatusCode != System.Net.HttpStatusCode.OK)
-                {
-                    throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
-                }
-                JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-                JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-                return JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
+                request.AddParameter(kvp.Key, kvp.Value);
             }
-            catch (Exception e)
+            var response = client.Execute(request);
+            if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                string parameterString = (parameters != null) ? string.Join(", ", parameters.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
-                this.logger.LogError($"While searching for object of type {typeof(T).Name} with path {path}, and parameters {parameterString}", e);
-                return new List<T>();
+                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
             }
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            return JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
         }
     }
 }

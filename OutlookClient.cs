@@ -90,6 +90,18 @@ namespace OutlookWelkinSyncFunction
                         .GetResult();
         }
 
+        public void Delete(User outlookUser, Event evt)
+        {
+            this.graphClient
+                .Users[outlookUser.UserPrincipalName]
+                .Calendar
+                .Events[evt.Id]
+                .Request()
+                .DeleteAsync()
+                .GetAwaiter()
+                .GetResult();
+        }
+
         public Event CreateOutlookEventFromWelkinEvent(User outlookUser, WelkinEvent welkinEvent, WelkinPractitioner welkinUser)
         {
             // Create and associate a new Outlook event
@@ -177,6 +189,30 @@ namespace OutlookWelkinSyncFunction
                     .GetAsync()
                     .GetAwaiter()
                     .GetResult();
+        }
+
+        public Event GetEventForUserWithICalId(User user, string guid, string extensionsNamespace = null)
+        {
+            string filter = $"iCalUId eq '{guid}'";
+
+            ICalendarEventsCollectionRequest request = 
+                        this.graphClient
+                            .Users[user.UserPrincipalName]
+                            .Calendar
+                            .Events
+                            .Request()
+                            .Filter(filter);
+
+            if (extensionsNamespace != null)
+            {
+                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+            }
+            
+            return request
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult()
+                    .FirstOrDefault();
         }
 
         public void SetOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
