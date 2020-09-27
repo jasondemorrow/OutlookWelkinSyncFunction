@@ -16,10 +16,21 @@ namespace OutlookWelkinSyncFunction
             WelkinClient welkinClient = new WelkinClient(new WelkinConfig(), log);
             DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-24);
             TimeSpan historySpan = DateTime.UtcNow - lastRun;
+            IEnumerable<User> outlookUsers = new List<User>();
+            IEnumerable<WelkinPractitioner> welkinUsers = new List<WelkinPractitioner>();
 
-            // TODO: Obviously the following doesn't scale well. Factoring this out and adding pagination will help.
-            IEnumerable<User> outlookUsers = outlookClient.GetAllUsers();
-            IEnumerable<WelkinPractitioner> welkinUsers = welkinClient.GetAllPractitioners();
+            try
+            {
+                // TODO: Obviously the following doesn't scale well. Factoring this out and adding pagination will help.
+                outlookUsers = outlookClient.GetAllUsers();
+                welkinUsers = welkinClient.GetAllPractitioners();
+            }
+            catch (Exception e)
+            {
+                string trace = Exceptions.ToStringRecursively(e);
+                log.LogError($"While retrieving users: {trace}");
+            }
+
             IDictionary<string, string> welkinUserNamesByCalendarId = new Dictionary<string, string>();
             IDictionary<string, string> welkinCalendarIdsByUserName = new Dictionary<string, string>();
             IDictionary<string, WelkinPractitioner> welkinPractitionerByUserName = new Dictionary<string, WelkinPractitioner>();
@@ -32,16 +43,23 @@ namespace OutlookWelkinSyncFunction
                     continue;
                 }
 
-                WelkinCalendar calendar = welkinClient.GetCalendarForPractitioner(welkinUser);
-                if (calendar == null)
+                try
                 {
-                    log.LogWarning($"Welkin calendar not found for user {userName}");
-                    continue;
+                    WelkinCalendar calendar = welkinClient.GetCalendarForPractitioner(welkinUser);
+                    if (calendar == null)
+                    {
+                        log.LogWarning($"Welkin calendar not found for user {userName}");
+                        continue;
+                    }
+                    welkinUserNamesByCalendarId[calendar.Id] = userName;
+                    welkinCalendarIdsByUserName[userName] = calendar.Id;
+                    welkinPractitionerByUserName[userName] = welkinUser;
                 }
-
-                welkinUserNamesByCalendarId[calendar.Id] = userName;
-                welkinCalendarIdsByUserName[userName] = calendar.Id;
-                welkinPractitionerByUserName[userName] = welkinUser;
+                catch (Exception e)
+                {
+                    string trace = Exceptions.ToStringRecursively(e);
+                    log.LogError($"While retrieving Welkin calendar for {userName}: {trace}");
+                }
             }
 
             IEnumerable<WelkinEvent> welkinEvents = welkinClient.GetEventsUpdatedSince(historySpan);
@@ -105,7 +123,8 @@ namespace OutlookWelkinSyncFunction
                                 }
                                 catch (Exception e)
                                 {
-                                    log.LogError($"While ensuring Outlook to Welkin link for Outlook event {evt.ICalUId}.", e);
+                                    string trace = Exceptions.ToStringRecursively(e);
+                                    log.LogError($"While ensuring Outlook to Welkin link for Outlook event {evt.ICalUId}: {trace}");
                                     if (createdPlaceholderWelkinEvent)
                                     {
                                         welkinClient.DeleteEvent(eventLink.TargetWelkinEvent);
@@ -137,7 +156,8 @@ namespace OutlookWelkinSyncFunction
                         }
                         catch (Exception e)
                         {
-                            log.LogError(e, $"While sync'ing Outlook event {evt.ICalUId} for user {userName}.");
+                            string trace = Exceptions.ToStringRecursively(e);
+                            log.LogError($"While sync'ing Outlook event {evt.ICalUId} for user {userName}: {trace}");
                         }
                     }
 
@@ -176,7 +196,8 @@ namespace OutlookWelkinSyncFunction
                 }
                 catch (Exception e)
                 {
-                    log.LogError(e, $"While retrieving Outlook events for user {userName}.");
+                    string trace = Exceptions.ToStringRecursively(e);
+                    log.LogError(e, $"While sync'ing events for user {userName}: {trace}");
                 }
             }
 
