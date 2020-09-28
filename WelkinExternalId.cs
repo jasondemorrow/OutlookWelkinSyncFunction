@@ -17,7 +17,7 @@ namespace OutlookWelkinSyncFunction
         [JsonProperty("external_id")]
         public string ExternalId { get; set; }
 
-        [JsonProperty("internal_id")]
+        [JsonProperty("welkin_id")]
         public string InternalId { get; set; }
     }
 }

@@ -5,6 +5,7 @@ using System.Net.Http;
 using System.Text;
 using Jose;
 using Microsoft.Extensions.Logging;
+using Microsoft.Graph;
 using Newtonsoft.Json;
 using Newtonsoft.Json.Linq;
 using RestSharp;
@@ -121,7 +122,7 @@ namespace OutlookWelkinSyncFunction
             var response = client.Execute(request);
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
@@ -155,7 +156,7 @@ namespace OutlookWelkinSyncFunction
             var response = client.Execute(request);
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JObject data = result.First.ToObject<JProperty>().Value.ToObject<JObject>();
@@ -173,14 +174,19 @@ namespace OutlookWelkinSyncFunction
             var response = client.Execute(request);
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
         }
 
-        public WelkinExternalId FindExternalMappingFor(WelkinEvent internalEvent)
+        public WelkinExternalId FindExternalMappingFor(WelkinEvent internalEvent, Event externalEvent = null)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters["namespace"] = Constants.WelkinEventExtensionNamespace;
+            if (externalEvent != null)
+            {
+                parameters["namespace"] = Constants.WelkinEventExtensionNamespacePrefix + externalEvent.ICalUId;
+                string derivedGuid = Guids.FromText(externalEvent.ICalUId).ToString();
+                parameters["external_id"] = derivedGuid;
+            }
             parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["welkin_id"] = internalEvent.Id;
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>("external_ids", parameters);
@@ -201,7 +207,7 @@ namespace OutlookWelkinSyncFunction
             var response = client.Execute(request);
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
-                throw new Exception($"HTTP status {response.StatusCode} with message {response.ErrorMessage}");
+                throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();

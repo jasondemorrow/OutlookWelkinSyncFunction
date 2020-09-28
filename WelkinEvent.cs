@@ -31,14 +31,12 @@ namespace OutlookWelkinSyncFunction
                 if (this.IsAllDay)
                 {
                     outlookEvent.Start.DateTime = this.Day.Value.ToString("o");
-                    outlookEvent.Start.DateTime = null;
                     outlookEvent.End.DateTime = null;
                 }
                 else 
                 {
                     outlookEvent.Start.DateTime = this.Start.Value.ToString("o");
                     outlookEvent.End.DateTime = this.End.Value.ToString("o");
-                    outlookEvent.Start.DateTime = null;
                 }
             }
             else

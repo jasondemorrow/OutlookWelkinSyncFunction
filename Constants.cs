@@ -6,7 +6,7 @@ namespace OutlookWelkinSyncFunction
     {
         public static readonly string OutlookEventExtensionsNamespace = "sync.outlook.welkinhealth.com";
         public static readonly string WelkinPatientExtensionNamespace = "patient_placeholders_sync_outlook_welkinhealth_com";
-        public static readonly string WelkinEventExtensionNamespace = "event_placeholders_sync_outlook_welkinhealth_com";
+        public static readonly string WelkinEventExtensionNamespacePrefix = "sync_outlook_";
         public static readonly string LinkedWelkinEventIdKey = "LinkedWelkinEventId";
         public static readonly string DefaultModality = "call";
         public static readonly string DefaultAppointmentType = "intake_call";
