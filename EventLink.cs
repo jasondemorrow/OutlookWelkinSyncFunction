@@ -150,7 +150,7 @@ namespace OutlookWelkinSyncFunction
                     InternalId = this.TargetWelkinEvent.Id,
                     Namespace = Constants.WelkinEventExtensionNamespacePrefix + this.TargetOutlookEvent.ICalUId
                 };
-                welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId, true);
+                welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId);
                 string outlookICalId = welkinExternalId?.Namespace?.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
 
                 if (outlookICalId != null && outlookICalId.Equals(this.TargetOutlookEvent.ICalUId))

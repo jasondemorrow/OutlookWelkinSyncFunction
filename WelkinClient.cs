@@ -131,9 +131,9 @@ namespace OutlookWelkinSyncFunction
             return JsonConvert.DeserializeObject<T>(body.Value.ToString());
         }
 
-        public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, bool isNew)
+        public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, string id = null)
         {
-            return this.CreateOrUpdateObject(evt, isNew, Constants.CalendarEventResourceName);
+            return this.CreateOrUpdateObject(evt, Constants.CalendarEventResourceName, id);
         }
 
         public void DeleteEvent(WelkinEvent evt)
@@ -141,16 +141,16 @@ namespace OutlookWelkinSyncFunction
             this.DeleteObject(evt.Id, Constants.CalendarEventResourceName);
         }
 
-        public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, bool isNew)
+        public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, string id = null)
         {
-            return this.CreateOrUpdateObject(external, isNew, "external_ids");
+            return this.CreateOrUpdateObject(external, "external_ids", id);
         }
 
-        private T CreateOrUpdateObject<T>(T obj, bool isNew, string path)
+        private T CreateOrUpdateObject<T>(T obj, string path, string id = null)
         {
-            string url = $"{config.ApiUrl}{path}";
+            string url = (id == null)? $"{config.ApiUrl}{path}" : $"{config.ApiUrl}{path}/{id}";
             var client = new RestClient(url);
-            Method method = isNew? Method.POST : Method.PUT;
+            Method method = (id == null)? Method.POST : Method.PUT;
             var request = new RestRequest(method);
             request.AddHeader("authorization", "Bearer " + this.token);
             request.AddHeader("cache-control", "no-cache");

@@ -117,7 +117,7 @@ namespace OutlookWelkinSyncFunction
                                 {
                                     WelkinEvent placeholderEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
                                     placeholderEvent.SyncWith(evt);
-                                    eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent, true);
+                                    eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent);
                                     createdPlaceholderWelkinEvent = (eventLink.TargetWelkinEvent != null);
                                     eventLink.Ensure(EventLink.Direction.OutlookToWelkin);
                                 }
@@ -136,7 +136,7 @@ namespace OutlookWelkinSyncFunction
                             bool welkinEventNeedsUpdate = !createdPlaceholderWelkinEvent && eventLink.LinkedWelkinEvent.SyncWith(evt);
                             if (welkinEventNeedsUpdate)
                             {
-                                welkinClient.CreateOrUpdateEvent(eventLink.LinkedWelkinEvent, false);
+                                welkinClient.CreateOrUpdateEvent(eventLink.LinkedWelkinEvent, eventLink.LinkedWelkinEvent.Id);
                             }
                             else if (!createdPlaceholderWelkinEvent) // Outlook event needs update
                             {
@@ -147,9 +147,9 @@ namespace OutlookWelkinSyncFunction
                             {
                                 // If the existing Welkin event has also been recently updated, we can skip it later
                                 welkinEventsByUserNameThenEventId[userName].Remove(eventLink.LinkedWelkinEvent.Id);
-                                log.LogInformation($@"Welkin event with ID {eventLink.LinkedWelkinEvent.Id} has recently been updated, 
-                                                        but will be skipped since its corresponding Outlook event with ID 
-                                                        {evt.ICalUId} has also been recently updated and therefore sync'ed.");
+                                log.LogInformation($@"Welkin event with ID {eventLink.LinkedWelkinEvent.Id} has recently been updated, " +
+                                                    "but will be skipped since its corresponding Outlook event with ID {evt.ICalUId} has " + 
+                                                    "also been recently updated and therefore sync'ed.");
                             }
 
                             log.LogInformation($"Successfully sync'ed Outlook event {evt.ICalUId} with Welkin event {eventLink.LinkedWelkinEvent.Id}.");
@@ -184,7 +184,7 @@ namespace OutlookWelkinSyncFunction
                             if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
                                 // this needs to have ID in the URL
-                                welkinClient.CreateOrUpdateEvent(evt, false);
+                                welkinClient.CreateOrUpdateEvent(evt, evt.Id);
                             }
                             else if (!createdPlaceholderOutlookEvent)
                             {
