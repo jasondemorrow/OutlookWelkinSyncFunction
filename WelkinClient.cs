@@ -125,8 +125,10 @@ namespace OutlookWelkinSyncFunction
                 throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            return JsonConvert.DeserializeObject<T>(data.ToString());
+            JProperty body = result.First.ToObject<JProperty>();
+            //JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            //return JsonConvert.DeserializeObject<T>(data.ToString());
+            return JsonConvert.DeserializeObject<T>(body.Value.ToString());
         }
 
         public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, bool isNew)

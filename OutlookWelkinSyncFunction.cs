@@ -183,6 +183,7 @@ namespace OutlookWelkinSyncFunction
 
                             if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
+                                // this needs to have ID in the URL
                                 welkinClient.CreateOrUpdateEvent(evt, false);
                             }
                             else if (!createdPlaceholderOutlookEvent)

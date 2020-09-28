@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Linq;
 using Microsoft.Extensions.Logging;
 using Microsoft.Graph;
 
@@ -32,13 +33,14 @@ namespace OutlookWelkinSyncFunction
 
         public static string ExistsIn(Event outlookEvent, ILogger log)
         {
-                if (outlookEvent.Extensions?.AdditionalData == null || !outlookEvent.Extensions.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
+                Extension extensionForWelkin = outlookEvent?.Extensions.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace)).FirstOrDefault();
+                if (extensionForWelkin?.AdditionalData == null || !extensionForWelkin.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
                 {
                     log.LogInformation($"No linked Welkin event for Outlook event {outlookEvent.ICalUId}");
                     return null;
                 }
 
-                string linkedEventId = outlookEvent.Extensions.AdditionalData[Constants.LinkedWelkinEventIdKey].ToString();
+                string linkedEventId = extensionForWelkin.AdditionalData[Constants.LinkedWelkinEventIdKey]?.ToString();
                 if (string.IsNullOrEmpty(linkedEventId))
                 {
                     log.LogInformation($"Null or empty linked Welkin event ID for Outlook event {outlookEvent.ICalUId}");
