@@ -31,7 +31,7 @@ namespace OutlookWelkinSyncFunction
                 if (this.IsAllDay)
                 {
                     outlookEvent.Start.DateTime = this.Day.Value.ToString("o");
-                    outlookEvent.End.DateTime = null;
+                    outlookEvent.End.DateTime = this.Day.Value.AddDays(1).ToString("o");
                 }
                 else 
                 {
@@ -46,6 +46,10 @@ namespace OutlookWelkinSyncFunction
                 if (this.IsAllDay)
                 {
                     this.Day = DateTime.Parse(outlookEvent.Start.DateTime).Date;
+                    this.IgnoreUnavailableTimes = true;
+                    this.IgnoreWorkingHours = true;
+                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime);
+                    this.End = DateTime.Parse(outlookEvent.Start.DateTime).AddDays(1);
                 }
                 else 
                 {
@@ -62,6 +66,12 @@ namespace OutlookWelkinSyncFunction
 
         [JsonProperty("is_all_day")]
         public bool IsAllDay { get; set; }
+
+        [JsonProperty("ignore_unavailable_times")]
+        public bool IgnoreUnavailableTimes { get; set; }
+
+        [JsonProperty("ignore_working_hours")]
+        public bool IgnoreWorkingHours { get; set; }
 
         [JsonProperty("calendar_id")]
         public string CalendarId { get; set; }
