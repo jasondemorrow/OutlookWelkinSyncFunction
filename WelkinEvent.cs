@@ -79,7 +79,7 @@ namespace OutlookWelkinSyncFunction
         [JsonProperty("patient_id")]
         public string PatientId { get; set; }
 
-        [JsonProperty("outcome")]
+        [JsonProperty("outcome", NullValueHandling=NullValueHandling.Ignore)]
         public string Outcome { get; set; }
 
         [JsonProperty("modality")]

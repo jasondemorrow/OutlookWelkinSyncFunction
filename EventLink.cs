@@ -33,7 +33,7 @@ namespace OutlookWelkinSyncFunction
 
         public static string ExistsIn(Event outlookEvent, ILogger log)
         {
-                Extension extensionForWelkin = outlookEvent?.Extensions.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace)).FirstOrDefault();
+                Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
                 if (extensionForWelkin?.AdditionalData == null || !extensionForWelkin.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
                 {
                     log.LogInformation($"No linked Welkin event for Outlook event {outlookEvent.ICalUId}");
@@ -140,7 +140,7 @@ namespace OutlookWelkinSyncFunction
                 * Outlook's UUID for calendar events, ICalUId, is not a properly formed GUID, which the Welkin External ID API expects.
                 * We use a hashing method to generate a consistent, synthetic GUID for ICalUId, appending its original value to the 
                 * namespace string stored in the External ID. This makes the API happy while allowing us to derive the GUID
-                * from ICalUId when necessary, in a way that is decently collision-resistent.
+                * from ICalUId when necessary and vice versa, in a way that is adequately collision-resistent.
                 */
                 string derivedGuid = Guids.FromText(this.TargetOutlookEvent.ICalUId).ToString();
                 WelkinExternalId welkinExternalId = new WelkinExternalId

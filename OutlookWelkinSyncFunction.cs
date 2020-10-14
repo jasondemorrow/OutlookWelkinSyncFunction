@@ -143,7 +143,8 @@ namespace OutlookWelkinSyncFunction
                                 outlookClient.Update(user, evt);
                             }
                             
-                            if (welkinEventsByUserNameThenEventId[userName].ContainsKey(eventLink.LinkedWelkinEvent.Id))
+                            if (welkinEventsByUserNameThenEventId.ContainsKey(userName) && 
+                                welkinEventsByUserNameThenEventId[userName].ContainsKey(eventLink.LinkedWelkinEvent.Id))
                             {
                                 // If the existing Welkin event has also been recently updated, we can skip it later
                                 welkinEventsByUserNameThenEventId[userName].Remove(eventLink.LinkedWelkinEvent.Id);
@@ -183,7 +184,6 @@ namespace OutlookWelkinSyncFunction
 
                             if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
-                                // this needs to have ID in the URL
                                 welkinClient.CreateOrUpdateEvent(evt, evt.Id);
                             }
                             else if (!createdPlaceholderOutlookEvent)
