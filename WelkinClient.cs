@@ -1,5 +1,6 @@
 using System;
 using System.Collections.Generic;
+using System.Globalization;
 using System.Linq;
 using System.Net.Http;
 using System.Text;
@@ -17,11 +18,13 @@ namespace OutlookWelkinSyncFunction
         private readonly WelkinConfig config;
         private readonly ILogger logger;
         private readonly string token;
+        private readonly string dummyPatientId;
 
         public WelkinClient(WelkinConfig config, ILogger logger)
         {
             this.config = config;
             this.logger = logger;
+            this.dummyPatientId = Environment.GetEnvironmentVariable("WelkinDummyPatientId");
             var payload = new Dictionary<string, object>()
             {
                 { "iss", config.ClientId },
@@ -95,7 +98,9 @@ namespace OutlookWelkinSyncFunction
             var response = client.Execute(request);
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            return JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
+            // Filter out placeholder events created by sync. Welkin API doesn't support querying by patient ID.
+            List<WelkinEvent> events = JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
+            return events.Where(e => !(e.PatientId == null || e.PatientId.Equals(this.dummyPatientId)));
         }
 
         public WelkinEvent GetEvent(string eventId)
@@ -126,8 +131,6 @@ namespace OutlookWelkinSyncFunction
             }
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JProperty body = result.First.ToObject<JProperty>();
-            //JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            //return JsonConvert.DeserializeObject<T>(data.ToString());
             return JsonConvert.DeserializeObject<T>(body.Value.ToString());
         }
 
@@ -195,6 +198,42 @@ namespace OutlookWelkinSyncFunction
             return foundLinks.FirstOrDefault();
         }
 
+        public DateTime? FindLastSyncDateTimeFor(WelkinEvent internalEvent)
+        {
+            // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["namespace"] = Constants.WelkinLastSyncExtensionNamespace;
+            parameters["resource"] = Constants.CalendarEventResourceName;
+            parameters["welkin_id"] = internalEvent.Id;
+            IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>("external_ids", parameters);
+            if (foundLinks == null || !foundLinks.Any())
+            {
+                return null;
+            }
+            WelkinExternalId externalId = foundLinks.First();
+            return DateTime.ParseExact(externalId.ExternalId, "o", CultureInfo.InvariantCulture);
+        }
+
+        public bool SetLastSyncDateTimeFor(WelkinEvent internalEvent, DateTime? lastSync = null)
+        {
+            if (lastSync == null)
+            {
+                lastSync = DateTime.UtcNow;
+            }
+
+            // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
+            WelkinExternalId welkinExternalId = new WelkinExternalId
+            {
+                Resource = Constants.CalendarEventResourceName,
+                ExternalId = lastSync.Value.ToString("o", CultureInfo.InvariantCulture),
+                InternalId = internalEvent.Id,
+                Namespace = Constants.WelkinLastSyncExtensionNamespace
+            };
+            welkinExternalId = this.CreateOrUpdateExternalId(welkinExternalId);
+
+            return welkinExternalId != null && welkinExternalId.InternalId.Equals(internalEvent.Id);
+        }
+
         private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
         {
             string url = $"{config.ApiUrl}{path}";
@@ -214,6 +253,12 @@ namespace OutlookWelkinSyncFunction
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
             return JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
+        }
+
+        public bool IsPlaceHolderEvent(WelkinEvent evt)
+        {
+            string patientId = evt?.PatientId;
+            return !string.IsNullOrEmpty(patientId) && patientId.Equals(this.dummyPatientId);
         }
     }
 }

@@ -1,4 +1,5 @@
 using System;
+using System.Globalization;
 using System.Collections.Generic;
 using System.Linq;
 using System.Net.Http.Headers;
@@ -140,10 +141,34 @@ namespace OutlookWelkinSyncFunction
                                         .GetResult();
 
             Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
-            keyValuePairs[Constants.LinkedWelkinEventIdKey] = welkinEvent.Id;
+            keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = welkinEvent.Id;
+            keyValuePairs[Constants.OutlookPlaceHolderEventKey] = true;
             this.SetOpenExtensionPropertiesOnEvent(outlookUser, createdEvent, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
 
             return createdEvent;
+        }
+
+        public static bool IsPlaceHolderEvent(Event outlookEvent)
+        {
+            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookPlaceHolderEventKey))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static DateTime? GetLastSyncDateTime(Event outlookEvent)
+        {
+            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookLastSyncDateTimeKey))
+            {
+                string lastSync = extensionForWelkin.AdditionalData[Constants.OutlookLastSyncDateTimeKey].ToString();
+                return string.IsNullOrEmpty(lastSync) ? null : new DateTime?(DateTime.ParseExact(lastSync, "o", CultureInfo.InvariantCulture));
+            }
+
+            return null;
         }
 
         public IEnumerable<Event> GetEventsForUserUpdatedSince(User user, TimeSpan ago, string extensionsNamespace = null)
@@ -230,6 +255,23 @@ namespace OutlookWelkinSyncFunction
             string parameterString = (keyValuePairs != null) ? string.Join(", ", keyValuePairs.Select(kv => kv.Key + "=" + kv.Value).ToArray()) : "NULL";
 
             request.AddAsync(ext).GetAwaiter().OnCompleted(() => this.logger.LogInformation($"Successfully added an extension with values {parameterString}."));
+        }
+
+        public void MergeOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
+        {
+                Extension extension = evt?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+                if (extension?.AdditionalData != null)
+                {
+                    extension.AdditionalData.ToList().ForEach(x => 
+                    {
+                        if (!keyValuePairs.ContainsKey(x.Key))
+                        {
+                            keyValuePairs[x.Key] = x.Value;
+                        }
+                    });
+                }
+
+                this.SetOpenExtensionPropertiesOnEvent(usr, evt, keyValuePairs, extensionsNamespace);
         }
     }
 }

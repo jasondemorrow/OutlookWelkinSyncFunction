@@ -105,6 +105,12 @@ namespace OutlookWelkinSyncFunction
                     foreach (Event evt in recentlyUpdatedOutlookEvents)
                     {
                         log.LogInformation($"Found newly updated Outlook event '{evt.ICalUId}' for user {userName}.");
+                        if (OutlookClient.IsPlaceHolderEvent(evt))
+                        {
+                            log.LogInformation("This is a placeholder event created for a Welkin event. Skipping...");
+                            continue;
+                        }
+                        
                         eventLink.Clear();
 
                         try
@@ -168,6 +174,19 @@ namespace OutlookWelkinSyncFunction
                         foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
                         {
                             log.LogInformation($"Found newly updated Welkin event '{evt.Id}' for user {userName}.");
+                            if (welkinClient.IsPlaceHolderEvent(evt))
+                            {
+                                log.LogInformation("This is a placeholder event created for an Outlook event. Skipping...");
+                                continue;
+                            }
+
+                            DateTime? lastSync = welkinClient.FindLastSyncDateTimeFor(evt);
+                            if (lastSync != null && evt.Updated != null && lastSync.Value.CompareTo(evt.Updated.Value) >= 0)
+                            {
+                                log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
+                                continue;
+                            }
+
                             eventLink.Clear();
 
                             eventLink.TargetWelkinEvent = evt;
@@ -185,6 +204,7 @@ namespace OutlookWelkinSyncFunction
                             if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
                                 welkinClient.CreateOrUpdateEvent(evt, evt.Id);
+                                welkinClient.SetLastSyncDateTimeFor(evt);
                             }
                             else if (!createdPlaceholderOutlookEvent)
                             {

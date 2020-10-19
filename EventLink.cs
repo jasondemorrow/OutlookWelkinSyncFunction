@@ -34,13 +34,13 @@ namespace OutlookWelkinSyncFunction
         public static string ExistsIn(Event outlookEvent, ILogger log)
         {
                 Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
-                if (extensionForWelkin?.AdditionalData == null || !extensionForWelkin.AdditionalData.ContainsKey(Constants.LinkedWelkinEventIdKey))
+                if (extensionForWelkin?.AdditionalData == null || !extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookLinkedWelkinEventIdKey))
                 {
                     log.LogInformation($"No linked Welkin event for Outlook event {outlookEvent.ICalUId}");
                     return null;
                 }
 
-                string linkedEventId = extensionForWelkin.AdditionalData[Constants.LinkedWelkinEventIdKey]?.ToString();
+                string linkedEventId = extensionForWelkin.AdditionalData[Constants.OutlookLinkedWelkinEventIdKey]?.ToString();
                 if (string.IsNullOrEmpty(linkedEventId))
                 {
                     log.LogInformation($"Null or empty linked Welkin event ID for Outlook event {outlookEvent.ICalUId}");
@@ -102,7 +102,7 @@ namespace OutlookWelkinSyncFunction
                 * Outlook's UUID for calendar events, ICalUId, is not a properly formed GUID, which the Welkin External ID API expects.
                 * We use a hashing method to generate a consistent, synthetic GUID for ICalUId, appending its original value to the 
                 * namespace string stored in the External ID. This makes the API happy while allowing us to derive the GUID
-                * from ICalUId when necessary, in a way that is decently collision-resistent.
+                * from ICalUId when necessary and vice versa, in a way that is adequately collision-resistent.
                 */
                 string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
                 this.log.LogInformation($"Found linked Outlook ID for Welkin event {this.TargetWelkinEvent.Id}: {outlookICalId}.");
@@ -126,8 +126,8 @@ namespace OutlookWelkinSyncFunction
             if (direction.HasFlag(Direction.OutlookToWelkin) && !this.Exists(Direction.OutlookToWelkin))
             {
                 Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
-                keyValuePairs[Constants.LinkedWelkinEventIdKey] = this.TargetWelkinEvent.Id;
-                this.outlookClient.SetOpenExtensionPropertiesOnEvent(
+                keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = this.TargetWelkinEvent.Id;
+                this.outlookClient.MergeOpenExtensionPropertiesOnEvent(
                     this.outlookUser, this.TargetOutlookEvent, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
                 this.LinkedWelkinEvent = this.TargetWelkinEvent;
                 this.log.LogInformation(
