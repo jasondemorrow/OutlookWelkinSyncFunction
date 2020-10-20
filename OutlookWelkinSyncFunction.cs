@@ -110,6 +110,13 @@ namespace OutlookWelkinSyncFunction
                             log.LogInformation("This is a placeholder event created for a Welkin event. Skipping...");
                             continue;
                         }
+
+                        DateTime? lastSync = OutlookClient.GetLastSyncDateTime(evt);
+                        if (lastSync != null && evt.LastModifiedDateTime != null && lastSync.Value >= evt.LastModifiedDateTime.Value.UtcDateTime)
+                        {
+                            log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
+                            continue;
+                        }
                         
                         eventLink.Clear();
 
@@ -146,7 +153,9 @@ namespace OutlookWelkinSyncFunction
                             }
                             else if (!createdPlaceholderWelkinEvent) // Outlook event needs update
                             {
+                                DateTime? syncTime = DateTime.UtcNow;
                                 outlookClient.Update(user, evt);
+                                outlookClient.SetLastSyncDateTime(user, evt, syncTime);
                             }
                             
                             if (welkinEventsByUserNameThenEventId.ContainsKey(userName) && 
@@ -181,7 +190,7 @@ namespace OutlookWelkinSyncFunction
                             }
 
                             DateTime? lastSync = welkinClient.FindLastSyncDateTimeFor(evt);
-                            if (lastSync != null && evt.Updated != null && lastSync.Value.CompareTo(evt.Updated.Value) >= 0)
+                            if (lastSync != null && evt.Updated != null && lastSync.Value >= evt.Updated.Value)
                             {
                                 log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
                                 continue;

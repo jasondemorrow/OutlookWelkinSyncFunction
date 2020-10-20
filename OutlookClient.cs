@@ -148,29 +148,6 @@ namespace OutlookWelkinSyncFunction
             return createdEvent;
         }
 
-        public static bool IsPlaceHolderEvent(Event outlookEvent)
-        {
-            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
-            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookPlaceHolderEventKey))
-            {
-                return true;
-            }
-
-            return false;
-        }
-
-        public static DateTime? GetLastSyncDateTime(Event outlookEvent)
-        {
-            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
-            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookLastSyncDateTimeKey))
-            {
-                string lastSync = extensionForWelkin.AdditionalData[Constants.OutlookLastSyncDateTimeKey].ToString();
-                return string.IsNullOrEmpty(lastSync) ? null : new DateTime?(DateTime.ParseExact(lastSync, "o", CultureInfo.InvariantCulture));
-            }
-
-            return null;
-        }
-
         public IEnumerable<Event> GetEventsForUserUpdatedSince(User user, TimeSpan ago, string extensionsNamespace = null)
         {
             DateTime end = DateTime.UtcNow;
@@ -259,7 +236,7 @@ namespace OutlookWelkinSyncFunction
 
         public void MergeOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
         {
-                Extension extension = evt?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+                Extension extension = evt?.Extensions?.Where(e => e.Id.EndsWith(extensionsNamespace))?.FirstOrDefault();
                 if (extension?.AdditionalData != null)
                 {
                     extension.AdditionalData.ToList().ForEach(x => 
@@ -272,6 +249,54 @@ namespace OutlookWelkinSyncFunction
                 }
 
                 this.SetOpenExtensionPropertiesOnEvent(usr, evt, keyValuePairs, extensionsNamespace);
+        }
+
+        public bool SetLastSyncDateTime(User usr, Event evt, DateTime? lastSync = null)
+        {
+            if (lastSync == null)
+            {
+                lastSync = DateTime.UtcNow;
+            }
+
+            IDictionary<string, object> keyValuePairs = new Dictionary<string, object>
+            {
+                {Constants.OutlookLastSyncDateTimeKey , lastSync.Value.ToString("o", CultureInfo.InvariantCulture)}
+            };
+
+            try
+            {
+                this.MergeOpenExtensionPropertiesOnEvent(usr, evt, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError(string.Format("While setting sync date-time for event {0}", evt.ICalUId), e);
+                return false;
+            }
+
+            return true;
+        }
+
+        public static bool IsPlaceHolderEvent(Event outlookEvent)
+        {
+            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookPlaceHolderEventKey))
+            {
+                return true;
+            }
+
+            return false;
+        }
+
+        public static DateTime? GetLastSyncDateTime(Event outlookEvent)
+        {
+            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookLastSyncDateTimeKey))
+            {
+                string lastSync = extensionForWelkin.AdditionalData[Constants.OutlookLastSyncDateTimeKey].ToString();
+                return string.IsNullOrEmpty(lastSync) ? null : new DateTime?(DateTime.ParseExact(lastSync, "o", CultureInfo.InvariantCulture).ToUniversalTime());
+            }
+
+            return null;
         }
     }
 }
