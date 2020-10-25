@@ -153,9 +153,7 @@ namespace OutlookWelkinSyncFunction
                             }
                             else if (!createdPlaceholderWelkinEvent) // Outlook event needs update
                             {
-                                DateTime? syncTime = DateTime.UtcNow;
-                                outlookClient.Update(user, evt);
-                                outlookClient.SetLastSyncDateTime(user, evt, syncTime);
+                                Event updatedEvent = outlookClient.Update(user, evt);
                             }
                             
                             if (welkinEventsByUserNameThenEventId.ContainsKey(userName) && 
@@ -168,6 +166,7 @@ namespace OutlookWelkinSyncFunction
                                                     "also been recently updated and therefore sync'ed.");
                             }
 
+                            outlookClient.SetLastSyncDateTime(user, evt);
                             log.LogInformation($"Successfully sync'ed Outlook event {evt.ICalUId} with Welkin event {eventLink.LinkedWelkinEvent.Id}.");
                         }
                         catch (Exception e)
