@@ -126,7 +126,7 @@ namespace OutlookWelkinSyncFunction
                 {
                     DateTime = welkinEvent.IsAllDay 
                         ? welkinEvent.Day.Value.Date.AddDays(1).ToString() // Midnight day after
-                        : welkinEvent.Start.Value.ToString(), // Will be UTC
+                        : welkinEvent.End.Value.ToString(), // Will be UTC
                     TimeZone = welkinUser.Timezone
                 }
             };

@@ -48,13 +48,13 @@ namespace OutlookWelkinSyncFunction
                     this.Day = DateTime.Parse(outlookEvent.Start.DateTime).Date;
                     this.IgnoreUnavailableTimes = true;
                     this.IgnoreWorkingHours = true;
-                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime);
-                    this.End = DateTime.Parse(outlookEvent.Start.DateTime).AddDays(1);
+                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime).ToUniversalTime();
+                    this.End = DateTime.Parse(outlookEvent.Start.DateTime).AddDays(1).ToUniversalTime();
                 }
                 else 
                 {
-                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime);
-                    this.End = DateTime.Parse(outlookEvent.End.DateTime);
+                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime).ToUniversalTime();
+                    this.End = DateTime.Parse(outlookEvent.End.DateTime).ToUniversalTime();
                 }
             }
 

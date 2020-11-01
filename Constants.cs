@@ -13,6 +13,7 @@ namespace OutlookWelkinSyncFunction
         public static readonly string OutlookLastSyncDateTimeKey = "LastSyncDateTime";
         public static readonly string DefaultModality = "call";
         public static readonly string DefaultAppointmentType = "intake_call";
+        public static readonly string WelkinCancelledOutcome = "cancelled";
         public static readonly string CalendarEventResourceName = "calendar_events";
     }
 }

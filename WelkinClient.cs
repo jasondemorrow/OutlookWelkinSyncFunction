@@ -81,8 +81,16 @@ namespace OutlookWelkinSyncFunction
             request.AddHeader("cache-control", "no-cache");
             var response = client.Execute(request);
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            JObject calendar = data.First.ToObject<JObject>();
+            JArray data = result.First?.ToObject<JProperty>()?.Value.ToObject<JArray>();
+            if (data == null)
+            {
+                return null;
+            }
+            JObject calendar = data.First?.ToObject<JObject>();
+            if (calendar == null)
+            {
+                return null;
+            }
             return JsonConvert.DeserializeObject<WelkinCalendar>(calendar.ToString());
         }
 
@@ -100,7 +108,15 @@ namespace OutlookWelkinSyncFunction
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
             // Filter out placeholder events created by sync. Welkin API doesn't support querying by patient ID.
             List<WelkinEvent> events = JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
-            return events.Where(e => !(e.PatientId == null || e.PatientId.Equals(this.dummyPatientId)));
+            return events.Where(this.IsValid);
+        }
+
+        private bool IsValid(WelkinEvent evt)
+        {
+            return 
+                evt != null && 
+                !(evt.PatientId == null || evt.PatientId.Equals(this.dummyPatientId)) && 
+                !(evt.Outcome != null && evt.Outcome.Equals(Constants.WelkinCancelledOutcome));
         }
 
         public WelkinEvent GetEvent(string eventId)
