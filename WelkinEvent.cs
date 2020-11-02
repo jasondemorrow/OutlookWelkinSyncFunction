@@ -15,6 +15,8 @@ namespace OutlookWelkinSyncFunction
             evt.Modality = Constants.DefaultModality;
             evt.AppointmentType = Constants.DefaultAppointmentType;
             evt.PatientId = Environment.GetEnvironmentVariable("WelkinDummyPatientId");
+            evt.IgnoreUnavailableTimes = true;
+            evt.IgnoreWorkingHours = true;
             
             return evt;
         }
@@ -48,13 +50,14 @@ namespace OutlookWelkinSyncFunction
                     this.Day = DateTime.Parse(outlookEvent.Start.DateTime).Date;
                     this.IgnoreUnavailableTimes = true;
                     this.IgnoreWorkingHours = true;
-                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime).ToUniversalTime();
-                    this.End = DateTime.Parse(outlookEvent.Start.DateTime).AddDays(1).ToUniversalTime();
+                    this.Start = outlookEvent.StartUtc();
+                    this.End = outlookEvent.EndUtc();
                 }
                 else 
                 {
-                    this.Start = DateTime.Parse(outlookEvent.Start.DateTime).ToUniversalTime();
-                    this.End = DateTime.Parse(outlookEvent.End.DateTime).ToUniversalTime();
+                    this.Day = null;
+                    this.Start = outlookEvent.StartUtc();
+                    this.End = outlookEvent.EndUtc();
                 }
             }
 
@@ -67,10 +70,10 @@ namespace OutlookWelkinSyncFunction
         [JsonProperty("is_all_day")]
         public bool IsAllDay { get; set; }
 
-        [JsonProperty("ignore_unavailable_times")]
+        [JsonProperty("ignore_unavailable_times", NullValueHandling=NullValueHandling.Ignore)]
         public bool IgnoreUnavailableTimes { get; set; }
 
-        [JsonProperty("ignore_working_hours")]
+        [JsonProperty("ignore_working_hours", NullValueHandling=NullValueHandling.Ignore)]
         public bool IgnoreWorkingHours { get; set; }
 
         [JsonProperty("calendar_id")]
@@ -88,21 +91,21 @@ namespace OutlookWelkinSyncFunction
         [JsonProperty("appointment_type")]
         public string AppointmentType { get; set; }
 
-        [JsonProperty("updated_at")]
-        public DateTime? Updated { get; set; }
+        [JsonProperty("updated_at", NullValueHandling=NullValueHandling.Ignore)]
+        public DateTimeOffset? Updated { get; set; }
 
-        [JsonProperty("created_at")]
-        public DateTime? Created { get; set; }
+        [JsonProperty("created_at", NullValueHandling=NullValueHandling.Ignore)]
+        public DateTimeOffset? Created { get; set; }
 
         [JsonProperty("start_time")]
-        public DateTime? Start { get; set; }
+        public DateTimeOffset? Start { get; set; }
 
         [JsonProperty("end_time")]
-        public DateTime? End { get; set; }
+        public DateTimeOffset? End { get; set; }
 
         // If this is an all-day event, this is the date it's on
-        [JsonProperty("day")]
+        [JsonProperty("day", NullValueHandling=NullValueHandling.Ignore)]
         [JsonConverter(typeof(JsonDateFormatConverter), "yyyy-MM-dd")]
-        public DateTime? Day { get; set; }
+        public DateTimeOffset? Day { get; set; }
     }
 }

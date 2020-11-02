@@ -209,7 +209,7 @@ namespace OutlookWelkinSyncFunction
 
                             log.LogInformation($"Outlook event with ID {eventLink.LinkedOutlookEvent.ICalUId} associated with Welkin event {evt.Id}.");
 
-                            if (evt.SyncWith(eventLink.LinkedOutlookEvent))
+                            if (evt.SyncWith(eventLink.LinkedOutlookEvent)) // BUGBUG: Does not sync correctly
                             {
                                 welkinClient.CreateOrUpdateEvent(evt, evt.Id);
                                 welkinClient.SetLastSyncDateTimeFor(evt);
