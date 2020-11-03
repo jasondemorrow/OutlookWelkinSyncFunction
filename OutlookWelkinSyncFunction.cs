@@ -128,9 +128,10 @@ namespace OutlookWelkinSyncFunction
                             {
                                 try
                                 {
-                                    WelkinEvent placeholderEvent = WelkinEvent.CreateDefaultForCalendar(welkinCalendarIdsByUserName[userName]);
+                                    string calendarId = welkinCalendarIdsByUserName[userName];
+                                    WelkinEvent placeholderEvent = welkinClient.GeneratePlaceholderEventForCalendar(calendarId);
                                     placeholderEvent.SyncWith(evt);
-                                    eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent);
+                                    eventLink.TargetWelkinEvent = welkinClient.CreateOrUpdateEvent(placeholderEvent, placeholderEvent.Id);
                                     createdPlaceholderWelkinEvent = (eventLink.TargetWelkinEvent != null);
                                     eventLink.Ensure(EventLink.Direction.OutlookToWelkin);
                                 }
@@ -146,6 +147,7 @@ namespace OutlookWelkinSyncFunction
                                 }
                             }
 
+                            // BUGBUG: If Outlook is updated but linked and all-day, sync here results in Welkin dates being shifted and update fails
                             bool welkinEventNeedsUpdate = !createdPlaceholderWelkinEvent && eventLink.LinkedWelkinEvent.SyncWith(evt);
                             if (welkinEventNeedsUpdate)
                             {
@@ -209,7 +211,7 @@ namespace OutlookWelkinSyncFunction
 
                             log.LogInformation($"Outlook event with ID {eventLink.LinkedOutlookEvent.ICalUId} associated with Welkin event {evt.Id}.");
 
-                            if (evt.SyncWith(eventLink.LinkedOutlookEvent)) // BUGBUG: Does not sync correctly
+                            if (evt.SyncWith(eventLink.LinkedOutlookEvent))
                             {
                                 welkinClient.CreateOrUpdateEvent(evt, evt.Id);
                                 welkinClient.SetLastSyncDateTimeFor(evt);

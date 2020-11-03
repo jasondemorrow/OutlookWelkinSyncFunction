@@ -55,6 +55,21 @@ namespace OutlookWelkinSyncFunction
             }
         }
 
+        public WelkinEvent GeneratePlaceholderEventForCalendar(string calendarId)
+        {
+            WelkinEvent evt = new WelkinEvent();
+            evt.CalendarId = calendarId;
+            evt.IsAllDay = true;
+            evt.Day = DateTime.UtcNow.Date;
+            evt.Modality = Constants.DefaultModality;
+            evt.AppointmentType = Constants.DefaultAppointmentType;
+            evt.PatientId = this.dummyPatientId;
+            evt.IgnoreUnavailableTimes = true;
+            evt.IgnoreWorkingHours = true;
+            
+            return evt;
+        }
+
         public IEnumerable<WelkinPractitioner> GetAllPractitioners()
         {
             /*
