@@ -11,7 +11,7 @@ namespace OutlookWelkinSyncFunction
         {
             bool keepMine = 
                 (outlookEvent.LastModifiedDateTime == null) || 
-                (this.Updated != null && this.Updated.Value.ToUniversalTime() < outlookEvent.LastModifiedDateTime);
+                (this.Updated != null && this.Updated.Value.ToUniversalTime() > outlookEvent.LastModifiedDateTime);
 
             if (keepMine)
             {
@@ -33,26 +33,20 @@ namespace OutlookWelkinSyncFunction
                 
                 if (this.IsAllDay)
                 {
-                    this.IgnoreUnavailableTimes = true;
-                    this.IgnoreWorkingHours = true;
                     /**
-                    * For some reason, Outlook stores the start/end dates for an all day 
-                    * event in UTC. We want midnight-midnight in the timezone local to 
-                    * the user, so we calculate that here. There's a bit of a trick to 
-                    * this, since the day of the event depends on the user's offset from
-                    * UTC. If the offset is negative, then the UTC dates will be shifted
-                    * forward with respect to the user's desired range and we want the 
-                    * start date's day from the Outlook event. If the offset is positive, 
-                    * the UTC dates in the Outlook event will be earlier than those intended 
-                    * by the user, and we want the end date's day. A corner case is if the 
-                    * offset is zero, in which case we want the start date's day.
+                    * Outlook stores the start/end dates for an all day event in UTC. We want midnight-midnight in the timezone local to 
+                    * the user, so we calculate that here. There's a bit of a trick to this, since the day of the event depends on the 
+                    * user's offset from UTC. If the offset is negative, then the UTC dates will be shifted forward with respect to the 
+                    * user's desired range and we want the start date's day from the Outlook event. If the offset is positive, the UTC 
+                    * dates in the Outlook event will be earlier than those intended by the user, and we want the end date's day. A 
+                    * corner case is if the offset is zero, in which case we want the start date's day.
                     */
                     TimeZoneInfo userTimeZone = TZConvert.GetTimeZoneInfo(outlookEvent.OriginalStartTimeZone);
                     DateTimeOffset outlookEndDateOffset = outlookEvent.EndUtc();
 
                     // Don't use UtcNow since there may be a daylight savings time switch between now and the event.
                     TimeSpan offset = userTimeZone.GetUtcOffset(outlookEndDateOffset);
-                    if (offset <= TimeSpan.Zero)
+                    if (offset < TimeSpan.Zero)
                     {
                         this.Day = DateTime.Parse(outlookEvent.End.DateTime).Date;
                     }

@@ -71,7 +71,7 @@ namespace OutlookWelkinSyncFunction
                 return externalId;
         }
 
-        public bool Exists(Direction direction = Direction.OutlookToWelkin | Direction.WelkinToOutlook)
+        public bool FetchAndPopulateIfExists(Direction direction = Direction.OutlookToWelkin | Direction.WelkinToOutlook)
         {
             if (direction.HasFlag(Direction.OutlookToWelkin) && this.TargetOutlookEvent != null &&  this.LinkedWelkinEvent == null)
             {
@@ -116,14 +116,14 @@ namespace OutlookWelkinSyncFunction
                 }
             }
 
-            return true;
+            return true; // exists
         }
 
         public void Ensure(Direction direction = Direction.OutlookToWelkin | Direction.WelkinToOutlook)
         {
             Throw.IfAnyAreNull(this.TargetWelkinEvent, this.TargetOutlookEvent);
 
-            if (direction.HasFlag(Direction.OutlookToWelkin) && !this.Exists(Direction.OutlookToWelkin))
+            if (direction.HasFlag(Direction.OutlookToWelkin) && !this.FetchAndPopulateIfExists(Direction.OutlookToWelkin))
             {
                 Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
                 keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = this.TargetWelkinEvent.Id;
@@ -134,7 +134,7 @@ namespace OutlookWelkinSyncFunction
                     $"Successfully created link from Outlook event {this.TargetOutlookEvent.ICalUId} to Welkin event {this.TargetWelkinEvent.Id}");
             }
 
-            if (direction.HasFlag(Direction.WelkinToOutlook) && !this.Exists(Direction.WelkinToOutlook))
+            if (direction.HasFlag(Direction.WelkinToOutlook) && !this.FetchAndPopulateIfExists(Direction.WelkinToOutlook))
             {
                 /**
                 * Outlook's UUID for calendar events, ICalUId, is not a properly formed GUID, which the Welkin External ID API expects.

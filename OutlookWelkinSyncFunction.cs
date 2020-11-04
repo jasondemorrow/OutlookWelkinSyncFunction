@@ -124,7 +124,7 @@ namespace OutlookWelkinSyncFunction
                         {
                             eventLink.TargetOutlookEvent = evt;
                             bool createdPlaceholderWelkinEvent = false;
-                            if (!eventLink.Exists(EventLink.Direction.OutlookToWelkin))
+                            if (!eventLink.FetchAndPopulateIfExists(EventLink.Direction.OutlookToWelkin))
                             {
                                 try
                                 {
@@ -201,7 +201,7 @@ namespace OutlookWelkinSyncFunction
 
                             eventLink.TargetWelkinEvent = evt;
                             bool createdPlaceholderOutlookEvent = false;
-                            if (!eventLink.Exists(EventLink.Direction.WelkinToOutlook))
+                            if (!eventLink.FetchAndPopulateIfExists(EventLink.Direction.WelkinToOutlook))
                             {
                                 eventLink.TargetOutlookEvent = 
                                     outlookClient.CreateOutlookEventFromWelkinEvent(user, evt, welkinPractitionerByUserName[userName]);
