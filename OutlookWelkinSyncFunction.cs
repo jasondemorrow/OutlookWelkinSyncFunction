@@ -88,9 +88,9 @@ namespace OutlookWelkinSyncFunction
 
             // Find common users
             Dictionary<string, string> welkinIdToOutlookPrincipal = new Dictionary<string, string>();
-            foreach (User user in outlookUsers)
+            foreach (User outlookUser in outlookUsers)
             {
-                string userName = UserNameFrom(user.UserPrincipalName);
+                string userName = UserNameFrom(outlookUser.UserPrincipalName);
                 if (string.IsNullOrEmpty(userName) || !welkinCalendarIdsByUserName.ContainsKey(userName) || !welkinPractitionerByUserName.ContainsKey(userName))
                 {
                     log.LogWarning($"Unknown user ({userName}) or missing calendar or practitioner for user.");
@@ -102,12 +102,12 @@ namespace OutlookWelkinSyncFunction
                 {
                     // First, sync newly updated Outlook events for user
                     IEnumerable<Event> recentlyUpdatedOutlookEvents = 
-                        outlookClient.GetEventsForUserUpdatedSince(user, historySpan, Constants.OutlookEventExtensionsNamespace);
-                    foreach (Event evt in recentlyUpdatedOutlookEvents)
+                        outlookClient.GetEventsForUserUpdatedSince(outlookUser, historySpan, Constants.OutlookEventExtensionsNamespace);
+                    foreach (Event outlookEvent in recentlyUpdatedOutlookEvents)
                     {
                         outlookEventSync.Sync(
-                            evt, 
-                            user, 
+                            outlookEvent, 
+                            outlookUser, 
                             welkinPractitionerByUserName[userName], 
                             welkinEventsByUserNameThenEventId, 
                             welkinCalendarIdsByUserName[userName], 
@@ -117,11 +117,11 @@ namespace OutlookWelkinSyncFunction
                     // Second, sync newly updated Welkin events for user, if any
                     if (welkinEventsByUserNameThenEventId.ContainsKey(userName))
                     {
-                        foreach (WelkinEvent evt in welkinEventsByUserNameThenEventId[userName].Values)
+                        foreach (WelkinEvent welkinEvent in welkinEventsByUserNameThenEventId[userName].Values)
                         {
                             welkinEventSync.Sync(
-                                evt, 
-                                user, 
+                                welkinEvent, 
+                                outlookUser, 
                                 welkinPractitionerByUserName[userName], 
                                 welkinEventsByUserNameThenEventId, 
                                 welkinCalendarIdsByUserName[userName], 

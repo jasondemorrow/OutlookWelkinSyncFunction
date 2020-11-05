@@ -34,14 +34,12 @@ namespace OutlookWelkinSyncFunction
                     return;
                 }
 
-                DateTime? lastSync = welkinClient.FindLastSyncDateTimeFor(welkinEvent);
-                if (lastSync != null && welkinEvent.Updated != null && lastSync.Value >= welkinEvent.Updated.Value)
+                WelkinLastSyncEntry lastSync = welkinClient.FindLastSyncEntryFor(welkinEvent);
+                if (lastSync != null && lastSync.IsValid() && welkinEvent.Updated != null && lastSync.Time >= welkinEvent.Updated.Value)
                 {
                     log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
                     return;
                 }
-
-                eventLink.Clear();
 
                 eventLink.TargetWelkinEvent = welkinEvent;
                 bool createdPlaceholderOutlookEvent = false;
@@ -59,7 +57,8 @@ namespace OutlookWelkinSyncFunction
                 if (welkinEvent.SyncWith(eventLink.LinkedOutlookEvent))
                 {
                     welkinClient.CreateOrUpdateEvent(welkinEvent, welkinEvent.Id);
-                    welkinClient.SetLastSyncDateTimeFor(welkinEvent);
+                    string lastSyncEntryId = (lastSync != null && lastSync.IsValid()) ? lastSync.ExternalId.Id : null;
+                    welkinClient.SetLastSyncDateTimeFor(welkinEvent, lastSyncEntryId);
                 }
                 else if (!createdPlaceholderOutlookEvent)
                 {

@@ -134,16 +134,6 @@ namespace OutlookWelkinSyncFunction
                 !(evt.Outcome != null && evt.Outcome.Equals(Constants.WelkinCancelledOutcome));
         }
 
-        public WelkinEvent GetEvent(string eventId)
-        {
-            return this.GetObject<WelkinEvent>(eventId, "calendar_events");
-        }
-
-        public WelkinExternalId GetExternalId(string externalId)
-        {
-            return this.GetObject<WelkinExternalId>(externalId, "external_ids");
-        }
-
         private T GetObject<T>(string id, string path, Dictionary<string, string> parameters = null)
         {
             string url = $"{config.ApiUrl}{path}/{id}";
@@ -170,6 +160,11 @@ namespace OutlookWelkinSyncFunction
             return this.CreateOrUpdateObject(evt, Constants.CalendarEventResourceName, id);
         }
 
+        public WelkinEvent GetEvent(string eventId)
+        {
+            return this.GetObject<WelkinEvent>(eventId, Constants.CalendarEventResourceName);
+        }
+
         public void DeleteEvent(WelkinEvent evt)
         {
             this.DeleteObject(evt.Id, Constants.CalendarEventResourceName);
@@ -177,10 +172,15 @@ namespace OutlookWelkinSyncFunction
 
         public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, string id = null)
         {
-            return this.CreateOrUpdateObject(external, "external_ids", id);
+            return this.CreateOrUpdateObject(external, Constants.ExternalIdResourceName, id);
         }
 
-        private T CreateOrUpdateObject<T>(T obj, string path, string id = null)
+        public WelkinExternalId GetExternalId(string externalId)
+        {
+            return this.GetObject<WelkinExternalId>(externalId, Constants.ExternalIdResourceName);
+        }
+
+        private T CreateOrUpdateObject<T>(T obj, string path, string? id = null) where T : class
         {
             string url = (id == null)? $"{config.ApiUrl}{path}" : $"{config.ApiUrl}{path}/{id}";
             var client = new RestClient(url);
@@ -194,9 +194,9 @@ namespace OutlookWelkinSyncFunction
             {
                 throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
-            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JObject data = result.First.ToObject<JProperty>().Value.ToObject<JObject>();
-            return JsonConvert.DeserializeObject<T>(data.ToString());
+            JObject? result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JObject? data = result?.First?.ToObject<JProperty>()?.Value.ToObject<JObject>();
+            return (data == null)? default(T) : JsonConvert.DeserializeObject<T>(data.ToString());
         }
 
         private void DeleteObject(string id, string path)
@@ -229,7 +229,7 @@ namespace OutlookWelkinSyncFunction
             return foundLinks.FirstOrDefault();
         }
 
-        public DateTime? FindLastSyncDateTimeFor(WelkinEvent internalEvent)
+        public WelkinLastSyncEntry FindLastSyncEntryFor(WelkinEvent internalEvent)
         {
             // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
             Dictionary<string, string> parameters = new Dictionary<string, string>();
@@ -242,10 +242,10 @@ namespace OutlookWelkinSyncFunction
                 return null;
             }
             WelkinExternalId externalId = foundLinks.First();
-            return DateTime.ParseExact(externalId.ExternalId, "o", CultureInfo.InvariantCulture);
+            return new WelkinLastSyncEntry(externalId);
         }
 
-        public bool SetLastSyncDateTimeFor(WelkinEvent internalEvent, DateTime? lastSync = null)
+        public bool SetLastSyncDateTimeFor(WelkinEvent internalEvent, string existingId = null, DateTime? lastSync = null)
         {
             if (lastSync == null)
             {
@@ -260,7 +260,7 @@ namespace OutlookWelkinSyncFunction
                 InternalId = internalEvent.Id,
                 Namespace = Constants.WelkinLastSyncExtensionNamespace
             };
-            welkinExternalId = this.CreateOrUpdateExternalId(welkinExternalId);
+            welkinExternalId = this.CreateOrUpdateExternalId(welkinExternalId, existingId);
 
             return welkinExternalId != null && welkinExternalId.InternalId.Equals(internalEvent.Id);
         }

@@ -15,5 +15,6 @@ namespace OutlookWelkinSyncFunction
         public static readonly string DefaultAppointmentType = "intake_call";
         public static readonly string WelkinCancelledOutcome = "cancelled";
         public static readonly string CalendarEventResourceName = "calendar_events";
+        public static readonly string ExternalIdResourceName = "external_ids";
     }
 }
