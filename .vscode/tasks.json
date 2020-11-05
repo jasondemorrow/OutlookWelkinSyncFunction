@@ -64,6 +64,21 @@
 			"command": "host start",
 			"isBackground": true,
 			"problemMatcher": "$func-watch"
+		},
+		{
+			"label": "publish-release",
+			"command": "dotnet",
+			"type": "process",
+			"args": [
+				"publish",
+				"${workspaceFolder}",
+				"--configuration",
+				"Release",
+				"/property:GenerateFullPaths=true",
+				"/consoleloggerparameters:NoSummary"
+			],
+			"problemMatcher": "$msCompile",
+			"dependsOn": "clean"
 		}
 	]
 }
