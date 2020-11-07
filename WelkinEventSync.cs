@@ -25,6 +25,9 @@ namespace OutlookWelkinSyncFunction
                          string welkinCalendarId,
                          string commonUserName)
         {
+            Event createdOutlookEvent = null;
+            try
+            {
                 EventLink eventLink = 
                     new EventLink(null, welkinEvent, outlookClient, welkinClient, outlookUser, practitioner, log);
                 log.LogInformation($"Found newly updated Welkin event '{welkinEvent.Id}' for user {commonUserName}.");
@@ -48,6 +51,7 @@ namespace OutlookWelkinSyncFunction
                     eventLink.TargetOutlookEvent = 
                         outlookClient.CreateOutlookEventFromWelkinEvent(outlookUser, welkinEvent, practitioner);
                     createdPlaceholderOutlookEvent = true;
+                    createdOutlookEvent = eventLink.TargetOutlookEvent;
                     eventLink.Ensure(EventLink.Direction.WelkinToOutlook);
                 }
 
@@ -67,6 +71,17 @@ namespace OutlookWelkinSyncFunction
 
                 log.LogInformation(
                     $"Successfully sync'ed Welkin event {welkinEvent.Id} with Outlook event {eventLink.LinkedOutlookEvent.ICalUId}.");
+            }
+            catch (Exception e)
+            {
+                string trace = Exceptions.ToStringRecursively(e);
+                log.LogError($"Sync failed for Welkin event {welkinEvent}: {trace}");
+                if (createdOutlookEvent != null)
+                {
+                    log.LogInformation("Deleting created placeholder event in Outlook...");
+                    this.outlookClient.Delete(outlookUser, createdOutlookEvent);
+                }
+            }
         }
     }
 }

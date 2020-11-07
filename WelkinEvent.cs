@@ -111,5 +111,10 @@ namespace OutlookWelkinSyncFunction
         [JsonProperty("day", NullValueHandling=NullValueHandling.Ignore)]
         [JsonConverter(typeof(JsonDateFormatConverter), "yyyy-MM-dd")]
         public DateTimeOffset? Day { get; set; }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 }

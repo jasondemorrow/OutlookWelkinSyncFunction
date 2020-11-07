@@ -13,7 +13,7 @@ using RestSharp;
 
 namespace OutlookWelkinSyncFunction
 {
-    public class WelkinClient // TODO: pagination
+    public class WelkinClient
     {
         private readonly WelkinConfig config;
         private readonly ILogger logger;
