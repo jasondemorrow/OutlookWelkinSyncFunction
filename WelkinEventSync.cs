@@ -25,19 +25,19 @@ namespace OutlookWelkinSyncFunction
                          string welkinCalendarId,
                          string commonUserName)
         {
+            log.LogInformation($"Found newly updated Welkin event '{welkinEvent.Id}' for user {commonUserName}.");
+            EventLink eventLink = new EventLink(null, welkinEvent, outlookClient, welkinClient, outlookUser, practitioner, log);
+            WelkinLastSyncEntry lastSync = welkinClient.FindLastSyncEntryFor(welkinEvent);
             Event createdOutlookEvent = null;
+
             try
             {
-                EventLink eventLink = 
-                    new EventLink(null, welkinEvent, outlookClient, welkinClient, outlookUser, practitioner, log);
-                log.LogInformation($"Found newly updated Welkin event '{welkinEvent.Id}' for user {commonUserName}.");
                 if (welkinClient.IsPlaceHolderEvent(welkinEvent))
                 {
                     log.LogInformation("This is a placeholder event created for an Outlook event. Skipping...");
                     return;
                 }
 
-                WelkinLastSyncEntry lastSync = welkinClient.FindLastSyncEntryFor(welkinEvent);
                 if (lastSync != null && lastSync.IsValid() && welkinEvent.Updated != null && lastSync.Time >= welkinEvent.Updated.Value)
                 {
                     log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
@@ -61,16 +61,13 @@ namespace OutlookWelkinSyncFunction
                 if (welkinEvent.SyncWith(eventLink.LinkedOutlookEvent))
                 {
                     welkinClient.CreateOrUpdateEvent(welkinEvent, welkinEvent.Id);
-                    string lastSyncEntryId = (lastSync != null && lastSync.IsValid()) ? lastSync.ExternalId.Id : null;
-                    welkinClient.SetLastSyncDateTimeFor(welkinEvent, lastSyncEntryId);
                 }
                 else if (!createdPlaceholderOutlookEvent)
                 {
                     outlookClient.Update(outlookUser, eventLink.LinkedOutlookEvent);
                 }
 
-                log.LogInformation(
-                    $"Successfully sync'ed Welkin event {welkinEvent.Id} with Outlook event {eventLink.LinkedOutlookEvent.ICalUId}.");
+                log.LogInformation($"Successfully sync'ed Welkin event {welkinEvent} with Outlook event {eventLink.LinkedOutlookEvent.ICalUId}.");
             }
             catch (Exception e)
             {
@@ -81,6 +78,11 @@ namespace OutlookWelkinSyncFunction
                     log.LogInformation("Deleting created placeholder event in Outlook...");
                     this.outlookClient.Delete(outlookUser, createdOutlookEvent);
                 }
+            }
+            finally
+            {
+                string lastSyncEntryId = (lastSync != null && lastSync.IsValid()) ? lastSync.ExternalId.Id : null;
+                welkinClient.SetLastSyncDateTimeFor(welkinEvent, lastSyncEntryId);
             }
         }
     }

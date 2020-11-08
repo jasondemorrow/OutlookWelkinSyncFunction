@@ -90,6 +90,7 @@ namespace OutlookWelkinSyncFunction
             Dictionary<string, string> welkinIdToOutlookPrincipal = new Dictionary<string, string>();
             foreach (User outlookUser in outlookUsers)
             {
+                // For users with accounts in both Welkin and Outlook, sync their recently updated events
                 string userName = UserNameFrom(outlookUser.UserPrincipalName);
                 if (string.IsNullOrEmpty(userName) || !welkinCalendarIdsByUserName.ContainsKey(userName) || !welkinPractitionerByUserName.ContainsKey(userName))
                 {
@@ -97,13 +98,21 @@ namespace OutlookWelkinSyncFunction
                     continue;
                 }
 
-                // For users with accounts in both Welkin and Outlook, sync their recently updated events
+                IEnumerable<Event> recentlyUpdatedOutlookEvents = new List<Event>();
                 try
                 {
-                    // First, sync newly updated Outlook events for user
-                    IEnumerable<Event> recentlyUpdatedOutlookEvents = 
-                        outlookClient.GetEventsForUserUpdatedSince(outlookUser, historySpan, Constants.OutlookEventExtensionsNamespace);
-                    foreach (Event outlookEvent in recentlyUpdatedOutlookEvents)
+                    recentlyUpdatedOutlookEvents = outlookClient.GetEventsForUserUpdatedSince(outlookUser, historySpan, Constants.OutlookEventExtensionsNamespace);
+                }
+                catch (Exception e)
+                {
+                    string trace = Exceptions.ToStringRecursively(e);
+                    log.LogError(e, $"While retrieving Outlook events for user {userName}: {trace}");
+                }
+
+                // First, sync newly updated Outlook events for user
+                foreach (Event outlookEvent in recentlyUpdatedOutlookEvents)
+                {
+                    try
                     {
                         outlookEventSync.Sync(
                             outlookEvent, 
@@ -113,11 +122,19 @@ namespace OutlookWelkinSyncFunction
                             welkinCalendarIdsByUserName[userName], 
                             userName);
                     }
-
-                    // Second, sync newly updated Welkin events for user, if any
-                    if (welkinEventsByUserNameThenEventId.ContainsKey(userName))
+                    catch (Exception e)
                     {
-                        foreach (WelkinEvent welkinEvent in welkinEventsByUserNameThenEventId[userName].Values)
+                        string trace = Exceptions.ToStringRecursively(e);
+                        log.LogError($"Sync failed with Outlook event {outlookEvent.ICalUId} for user {userName}: {trace}");
+                    }
+                }
+
+                // Second, sync newly updated Welkin events for user, if any
+                if (welkinEventsByUserNameThenEventId.ContainsKey(userName))
+                {
+                    foreach (WelkinEvent welkinEvent in welkinEventsByUserNameThenEventId[userName].Values)
+                    {
+                        try
                         {
                             welkinEventSync.Sync(
                                 welkinEvent, 
@@ -127,12 +144,12 @@ namespace OutlookWelkinSyncFunction
                                 welkinCalendarIdsByUserName[userName], 
                                 userName);
                         }
+                        catch (Exception e)
+                        {
+                            string trace = Exceptions.ToStringRecursively(e);
+                            log.LogError($"Sync failed for Welkin event {welkinEvent}: {trace}");
+                        }
                     }
-                }
-                catch (Exception e)
-                {
-                    string trace = Exceptions.ToStringRecursively(e);
-                    log.LogError(e, $"While sync'ing events for user {userName}: {trace}");
                 }
             }
 
