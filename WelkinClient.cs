@@ -226,7 +226,9 @@ namespace OutlookWelkinSyncFunction
             parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["welkin_id"] = internalEvent.Id;
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>("external_ids", parameters);
-            return foundLinks.FirstOrDefault();
+            return foundLinks
+                        .Where(x => x.Namespace.StartsWith(Constants.WelkinEventExtensionNamespacePrefix))
+                        .FirstOrDefault();
         }
 
         public WelkinLastSyncEntry FindLastSyncEntryFor(WelkinEvent internalEvent)

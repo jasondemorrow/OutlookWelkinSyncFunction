@@ -107,7 +107,7 @@ namespace OutlookWelkinSyncFunction
                 string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
                 this.log.LogInformation($"Found linked Outlook ID for Welkin event {this.TargetWelkinEvent.Id}: {outlookICalId}.");
 
-                LinkedOutlookEvent = outlookClient.GetEventForUserWithICalId(this.outlookUser, outlookICalId);
+                this.LinkedOutlookEvent = outlookClient.GetEventForUserWithICalId(this.outlookUser, outlookICalId);
                 if (string.IsNullOrEmpty(LinkedOutlookEvent?.ICalUId) || 
                     (this.TargetOutlookEvent != null && !LinkedOutlookEvent.ICalUId.Equals(this.TargetOutlookEvent.ICalUId)))
                 {
