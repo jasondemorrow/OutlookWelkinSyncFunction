@@ -233,7 +233,6 @@ namespace OutlookWelkinSyncFunction
         {
             // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
             Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters["namespace"] = Constants.WelkinLastSyncExtensionNamespace;
             parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["welkin_id"] = internalEvent.Id;
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>("external_ids", parameters);
@@ -241,24 +240,31 @@ namespace OutlookWelkinSyncFunction
             {
                 return null;
             }
-            WelkinExternalId externalId = foundLinks.First();
+            WelkinExternalId externalId = 
+                foundLinks
+                    .Where(x => x.Namespace.StartsWith(Constants.WelkinLastSyncExtensionNamespace))
+                    .FirstOrDefault();
             return new WelkinLastSyncEntry(externalId);
         }
 
-        public bool SetLastSyncDateTimeFor(WelkinEvent internalEvent, string existingId = null, DateTime? lastSync = null)
+        public bool SetLastSyncDateTimeFor(WelkinEvent internalEvent, string existingId = null, DateTimeOffset? lastSync = null)
         {
             if (lastSync == null)
             {
-                lastSync = DateTime.UtcNow;
+                lastSync = DateTimeOffset.UtcNow;
             }
 
-            // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
+            // We store last sync time for an event as an external ID namespace. 
+            // This is a hack to make event types extensible.
+            string isoDate = lastSync.Value.ToString("o", CultureInfo.InvariantCulture);
+            string syntheticNamespace = Constants.WelkinLastSyncExtensionNamespace + ":::" + isoDate;
+
             WelkinExternalId welkinExternalId = new WelkinExternalId
             {
                 Resource = Constants.CalendarEventResourceName,
-                ExternalId = lastSync.Value.ToString("o", CultureInfo.InvariantCulture),
+                ExternalId = Guid.NewGuid().ToString(), // does not matter
                 InternalId = internalEvent.Id,
-                Namespace = Constants.WelkinLastSyncExtensionNamespace
+                Namespace = syntheticNamespace
             };
             welkinExternalId = this.CreateOrUpdateExternalId(welkinExternalId, existingId);
 

@@ -25,10 +25,17 @@ namespace OutlookWelkinSyncFunction
                          string welkinCalendarId,
                          string commonUserName)
         {
-            log.LogInformation($"Found newly updated Welkin event '{welkinEvent.Id}' for user {commonUserName}.");
-            EventLink eventLink = new EventLink(null, welkinEvent, outlookClient, welkinClient, outlookUser, practitioner, log);
-            WelkinLastSyncEntry lastSync = welkinClient.FindLastSyncEntryFor(welkinEvent);
+            log.LogInformation($"Found newly updated Welkin event '{welkinEvent}' for user {commonUserName}.");
+            WelkinLastSyncEntry lastSync = null;
             Event createdOutlookEvent = null;
+            EventLink eventLink = null;
+
+            // We ignore unavailable times and working hours when updating event. The reason for this is that we want 
+            // the user to see when they've scheduled a conflict in Outlook. If we don't sync, they might not see it.
+            bool originalIgnoreTimes = welkinEvent.IgnoreUnavailableTimes;
+            bool originalIgnoreHours = welkinEvent.IgnoreWorkingHours;
+            welkinEvent.IgnoreUnavailableTimes = true;
+            welkinEvent.IgnoreWorkingHours = true;
 
             try
             {
@@ -38,12 +45,14 @@ namespace OutlookWelkinSyncFunction
                     return;
                 }
 
+                lastSync = welkinClient.FindLastSyncEntryFor(welkinEvent);
                 if (lastSync != null && lastSync.IsValid() && welkinEvent.Updated != null && lastSync.Time >= welkinEvent.Updated.Value)
                 {
                     log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
                     return;
                 }
 
+                eventLink = new EventLink(null, welkinEvent, outlookClient, welkinClient, outlookUser, practitioner, log);
                 eventLink.TargetWelkinEvent = welkinEvent;
                 bool createdPlaceholderOutlookEvent = false;
                 if (!eventLink.FetchAndPopulateIfExists(EventLink.Direction.WelkinToOutlook))
@@ -55,8 +64,7 @@ namespace OutlookWelkinSyncFunction
                     eventLink.Ensure(EventLink.Direction.WelkinToOutlook);
                 }
 
-                log.LogInformation(
-                    $"Outlook event with ID {eventLink.LinkedOutlookEvent.ICalUId} associated with Welkin event {welkinEvent.Id}.");
+                log.LogInformation($"Outlook event with ID {eventLink.LinkedOutlookEvent.ICalUId} associated with Welkin event {welkinEvent}.");
 
                 if (welkinEvent.SyncWith(eventLink.LinkedOutlookEvent))
                 {
@@ -81,6 +89,8 @@ namespace OutlookWelkinSyncFunction
             }
             finally
             {
+                welkinEvent.IgnoreUnavailableTimes = originalIgnoreTimes;
+                welkinEvent.IgnoreWorkingHours = originalIgnoreHours;
                 string lastSyncEntryId = (lastSync != null && lastSync.IsValid()) ? lastSync.ExternalId.Id : null;
                 welkinClient.SetLastSyncDateTimeFor(welkinEvent, lastSyncEntryId);
             }

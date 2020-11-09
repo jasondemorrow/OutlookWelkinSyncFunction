@@ -16,5 +16,6 @@ namespace OutlookWelkinSyncFunction
         public static readonly string WelkinCancelledOutcome = "cancelled";
         public static readonly string CalendarEventResourceName = "calendar_events";
         public static readonly string ExternalIdResourceName = "external_ids";
+        public static readonly string SyncNamespaceDateSeparator = ":::";
     }
 }

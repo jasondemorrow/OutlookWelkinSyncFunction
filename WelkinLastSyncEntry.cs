@@ -11,7 +11,15 @@ namespace OutlookWelkinSyncFunction
         public WelkinLastSyncEntry(WelkinExternalId externalId)
         {
             this.ExternalId = externalId;
-            this.Time = DateTimeOffset.ParseExact(externalId.ExternalId, "o", CultureInfo.InvariantCulture);
+            int idxDateStart = 
+                externalId.Namespace.IndexOf(Constants.SyncNamespaceDateSeparator) + 
+                Constants.SyncNamespaceDateSeparator.Length;
+            
+            if (idxDateStart > Constants.SyncNamespaceDateSeparator.Length)
+            {
+                string dateString = externalId.Namespace.Substring(idxDateStart);
+                this.Time = DateTimeOffset.ParseExact(dateString, "o", CultureInfo.InvariantCulture);
+            }
         }
 
         public Boolean IsValid()
