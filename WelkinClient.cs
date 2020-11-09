@@ -261,6 +261,7 @@ namespace OutlookWelkinSyncFunction
 
             WelkinExternalId welkinExternalId = new WelkinExternalId
             {
+                Id = existingId,
                 Resource = Constants.CalendarEventResourceName,
                 ExternalId = Guid.NewGuid().ToString(), // does not matter
                 InternalId = internalEvent.Id,
