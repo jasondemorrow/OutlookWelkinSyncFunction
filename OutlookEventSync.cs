@@ -25,8 +25,11 @@ namespace OutlookWelkinSyncFunction
                          string welkinCalendarId,
                          string commonUserName)
         {
+            bool updateSyncTime = true;
             bool placeholderEventCreated = false;
+            DateTimeOffset presumptiveLastSyncTime = DateTimeOffset.UtcNow; // must be before any update
             EventLink eventLink = new EventLink(outlookEvent, null, outlookClient, welkinClient, outlookUser, practitioner, log);
+
             try
             {
                 log.LogInformation($"Found newly updated Outlook event '{outlookEvent.ICalUId}' for user {commonUserName}.");
@@ -42,6 +45,7 @@ namespace OutlookWelkinSyncFunction
                     lastSync.Value >= outlookEvent.LastModifiedDateTime.Value.UtcDateTime)
                 {
                     log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
+                    updateSyncTime = false;
                     return;
                 }
 
@@ -92,7 +96,10 @@ namespace OutlookWelkinSyncFunction
             }
             finally
             {
-                outlookClient.SetLastSyncDateTime(outlookUser, outlookEvent);
+                if (updateSyncTime)
+                {
+                    outlookClient.SetLastSyncDateTime(outlookUser, outlookEvent, presumptiveLastSyncTime);
+                }
             }
         }
     }

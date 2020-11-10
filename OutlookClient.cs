@@ -251,18 +251,16 @@ namespace OutlookWelkinSyncFunction
                 this.SetOpenExtensionPropertiesOnEvent(usr, evt, keyValuePairs, extensionsNamespace);
         }
 
-        public bool SetLastSyncDateTime(User usr, Event evt)
+        public bool SetLastSyncDateTime(User usr, Event evt, DateTimeOffset? lastSync = null)
         {
-            /**
-            * The whole point of the last sync date-time is that it must be later than the last 
-            * updated time of the event. Here, we try to ensure that, but there's the potential 
-            * for a race condition here if the event happens to be updated during the few 
-            * seconds in between. TODO: Find a better way to do this.
-            */
-            DateTime lastSync = DateTime.UtcNow.AddSeconds(5);
+            if (lastSync == null)
+            {
+                lastSync = DateTimeOffset.UtcNow;
+            }
+
             IDictionary<string, object> keyValuePairs = new Dictionary<string, object>
             {
-                {Constants.OutlookLastSyncDateTimeKey , lastSync.ToString("o", CultureInfo.InvariantCulture)}
+                {Constants.OutlookLastSyncDateTimeKey , lastSync.Value.ToString("o", CultureInfo.InvariantCulture)}
             };
 
             try
