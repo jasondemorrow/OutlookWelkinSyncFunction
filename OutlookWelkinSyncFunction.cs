@@ -40,6 +40,7 @@ namespace OutlookWelkinSyncFunction
             foreach (WelkinPractitioner welkinUser in welkinUsers) // Build mappings of Welkin users to their calendars in Welkin
             {
                 string userName = UserNameFrom(welkinUser.Email);
+                //log.LogInformation($"Found Welkin user {welkinUser}");
                 if (string.IsNullOrEmpty(userName))
                 {
                     continue;
@@ -70,6 +71,11 @@ namespace OutlookWelkinSyncFunction
             // Cache all recently updated Welkin events, keyed by user name first then by event ID.
             foreach (WelkinEvent welkinEvent in welkinEvents)
             {
+                if (!welkinUserNamesByCalendarId.ContainsKey(welkinEvent.CalendarId))
+                {
+                    continue;
+                }
+
                 string userName = welkinUserNamesByCalendarId[welkinEvent.CalendarId];
 
                 if (string.IsNullOrEmpty(userName))

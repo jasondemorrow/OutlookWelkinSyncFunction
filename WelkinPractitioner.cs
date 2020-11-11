@@ -19,5 +19,10 @@ namespace OutlookWelkinSyncFunction
 
         [JsonProperty("timezone")]
         public string Timezone { get; set; }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 }
