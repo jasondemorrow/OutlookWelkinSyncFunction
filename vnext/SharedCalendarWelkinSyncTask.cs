@@ -15,10 +15,10 @@ namespace OutlookWelkinSync
         private readonly string sharedCalendarName;
 
         public SharedCalendarWelkinSyncTask(
-            WelkinEvent welkinEvent,
+            WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient,
             [Named("OutlookSharedCalendarUser")] string sharedCalendarUser,
             [Named("OutlookSharedCalendarName")] string sharedCalendarName
-            ) : base(welkinEvent)
+            ) : base(welkinEvent, outlookClient, welkinClient)
         {
             this.sharedCalendarUser = sharedCalendarUser;
             this.sharedCalendarName = sharedCalendarName;

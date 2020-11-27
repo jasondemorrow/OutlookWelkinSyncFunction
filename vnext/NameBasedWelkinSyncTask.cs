@@ -10,7 +10,8 @@ namespace OutlookWelkinSync
     /// </summary>
     public class NameBasedWelkinSyncTask : WelkinSyncTask
     {
-        public NameBasedWelkinSyncTask(WelkinEvent welkinEvent) : base(welkinEvent)
+        public NameBasedWelkinSyncTask(WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient) 
+        : base(welkinEvent, outlookClient, welkinClient)
         {
         }
 

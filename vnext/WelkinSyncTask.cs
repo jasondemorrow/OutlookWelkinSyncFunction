@@ -5,10 +5,14 @@ namespace OutlookWelkinSync
     public abstract class WelkinSyncTask
     {
         protected readonly WelkinEvent welkinEvent;
+        protected readonly OutlookClient outlookClient;
+        protected readonly WelkinClient welkinClient;
 
-        protected WelkinSyncTask(WelkinEvent welkinEvent)
+        protected WelkinSyncTask(WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient)
         {
             this.welkinEvent = welkinEvent;
+            this.outlookClient = outlookClient;
+            this.welkinClient = welkinClient;
         }
 
         /// <summary>
