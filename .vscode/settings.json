@@ -7,5 +7,6 @@
     "git.ignoreLimitWarning": true,
     "appService.preDeployTask": "publish-release",
     "appService.deploySubpath": "bin\\Release\\netcoreapp3.1\\publish",
-    "appService.defaultWebAppToDeploy": "/subscriptions/6434e9ab-c895-4b55-b9b7-d60a2951b827/resourceGroups/appsvc_windows_centralus/providers/Microsoft.Web/sites/OutlookWelkinSyncFunction"
+    "appService.defaultWebAppToDeploy": "/subscriptions/6434e9ab-c895-4b55-b9b7-d60a2951b827/resourceGroups/appsvc_windows_centralus/providers/Microsoft.Web/sites/OutlookWelkinSyncFunction",
+    "editor.acceptSuggestionOnCommitCharacter": false
 }

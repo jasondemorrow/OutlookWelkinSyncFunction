@@ -53,7 +53,7 @@ namespace OutlookWelkinSyncFunction
             return this.graphClient.Users.Request().GetAsync().GetAwaiter().GetResult();
         }
 
-        public IEnumerable<Event> GetEventsForUserScheduledBetween(User user, DateTime start, DateTime end, string extensionsNamespace = null)
+        public IEnumerable<Event> GetEventsForUserScheduledBetween(User user, DateTime start, DateTime end, string extensionsNamespace = null, string calendarName = null)
         {
             var queryOptions = new List<QueryOption>()
             {
@@ -62,9 +62,7 @@ namespace OutlookWelkinSyncFunction
             };
 
             ICalendarEventsCollectionRequest request = 
-                        this.graphClient
-                            .Users[user.UserPrincipalName]
-                            .Calendar
+                        CalendarRequestBuilderFrom(user, calendarName)
                             .Events
                             .Request(queryOptions);
 
@@ -79,23 +77,35 @@ namespace OutlookWelkinSyncFunction
                     .GetResult();
         }
 
-        public Event Update(User outlookUser, Event evt)
+        private ICalendarRequestBuilder CalendarRequestBuilderFrom(User outlookUser, string calendarName = null)
         {
-            return this.graphClient
-                        .Users[outlookUser.UserPrincipalName]
-                        .Calendar
-                        .Events[evt.Id]
-                        .Request()
-                        .UpdateAsync(evt)
-                        .GetAwaiter()
-                        .GetResult();
+            ICalendarRequestBuilder builder = this.graphClient
+                .Users[outlookUser.UserPrincipalName]
+                .Calendar;
+            
+            if (calendarName != null)
+            {
+                builder = this.graphClient
+                    .Users[outlookUser.UserPrincipalName]
+                    .Calendars[calendarName];
+            }
+
+            return builder; 
         }
 
-        public void Delete(User outlookUser, Event evt)
+        public Event Update(User outlookUser, Event evt, string calendarName = null)
         {
-            this.graphClient
-                .Users[outlookUser.UserPrincipalName]
-                .Calendar
+            return CalendarRequestBuilderFrom(outlookUser, calendarName)
+                    .Events[evt.Id]
+                    .Request()
+                    .UpdateAsync(evt)
+                    .GetAwaiter()
+                    .GetResult();
+        }
+
+        public void Delete(User outlookUser, Event evt, string calendarName = null)
+        {
+            CalendarRequestBuilderFrom(outlookUser, calendarName)
                 .Events[evt.Id]
                 .Request()
                 .DeleteAsync()
@@ -103,7 +113,7 @@ namespace OutlookWelkinSyncFunction
                 .GetResult();
         }
 
-        public Event CreateOutlookEventFromWelkinEvent(User outlookUser, WelkinEvent welkinEvent, WelkinPractitioner welkinUser)
+        public Event CreateOutlookEventFromWelkinEvent(User outlookUser, WelkinEvent welkinEvent, WelkinPractitioner welkinUser, string calendarName = null)
         {
             // Create and associate a new Outlook event
             Event outlookEvent = new Event
@@ -131,9 +141,7 @@ namespace OutlookWelkinSyncFunction
                 }
             };
 
-            Event createdEvent = this.graphClient
-                                        .Users[outlookUser.UserPrincipalName]
-                                        .Calendar
+            Event createdEvent = CalendarRequestBuilderFrom(outlookUser, calendarName)
                                         .Events
                                         .Request()
                                         .AddAsync(outlookEvent)
@@ -148,16 +156,14 @@ namespace OutlookWelkinSyncFunction
             return createdEvent;
         }
 
-        public IEnumerable<Event> GetEventsForUserUpdatedSince(User user, TimeSpan ago, string extensionsNamespace = null)
+        public IEnumerable<Event> GetEventsForUserUpdatedSince(User user, TimeSpan ago, string extensionsNamespace = null, string calendarName = null)
         {
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
             string filter = $"lastModifiedDateTime lt {end.ToString("o")} and lastModifiedDateTime gt {start.ToString("o")}";
 
             ICalendarEventsCollectionRequest request = 
-                        this.graphClient
-                            .Users[user.UserPrincipalName]
-                            .Calendar
+                        CalendarRequestBuilderFrom(user, calendarName)
                             .Events
                             .Request()
                             .Filter(filter);
@@ -173,12 +179,10 @@ namespace OutlookWelkinSyncFunction
                     .GetResult();
         }
 
-        public Event GetEventForUserWithId(User user, string id, string extensionsNamespace = null)
+        public Event GetEventForUserWithId(User user, string id, string extensionsNamespace = null, string calendarName = null)
         {
             IEventRequest request = 
-                        this.graphClient
-                            .Users[user.UserPrincipalName]
-                            .Calendar
+                        CalendarRequestBuilderFrom(user, calendarName)
                             .Events[id]
                             .Request();
 
@@ -193,14 +197,12 @@ namespace OutlookWelkinSyncFunction
                     .GetResult();
         }
 
-        public Event GetEventForUserWithICalId(User user, string guid, string extensionsNamespace = null)
+        public Event GetEventForUserWithICalId(User user, string guid, string extensionsNamespace = null, string calendarName = null)
         {
             string filter = $"iCalUId eq '{guid}'";
 
             ICalendarEventsCollectionRequest request = 
-                        this.graphClient
-                            .Users[user.UserPrincipalName]
-                            .Calendar
+                        CalendarRequestBuilderFrom(user, calendarName)
                             .Events
                             .Request()
                             .Filter(filter);
@@ -217,12 +219,10 @@ namespace OutlookWelkinSyncFunction
                     .FirstOrDefault();
         }
 
-        public void SetOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
+        public void SetOpenExtensionPropertiesOnEvent(User user, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace, string calendarName = null)
         {
             IEventExtensionsCollectionRequest request = 
-                        this.graphClient
-                            .Users[usr.UserPrincipalName]
-                            .Calendar
+                        CalendarRequestBuilderFrom(user, calendarName)
                             .Events[evt.Id]
                             .Extensions
                             .Request();
@@ -234,7 +234,7 @@ namespace OutlookWelkinSyncFunction
             request.AddAsync(ext).GetAwaiter().OnCompleted(() => this.logger.LogInformation($"Successfully added an extension with values {parameterString}."));
         }
 
-        public void MergeOpenExtensionPropertiesOnEvent(User usr, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
+        public void MergeOpenExtensionPropertiesOnEvent(User user, Event evt, IDictionary<string, object> keyValuePairs, string extensionsNamespace)
         {
                 Extension extension = evt?.Extensions?.Where(e => e.Id.EndsWith(extensionsNamespace))?.FirstOrDefault();
                 if (extension?.AdditionalData != null)
@@ -248,7 +248,7 @@ namespace OutlookWelkinSyncFunction
                     });
                 }
 
-                this.SetOpenExtensionPropertiesOnEvent(usr, evt, keyValuePairs, extensionsNamespace);
+                this.SetOpenExtensionPropertiesOnEvent(user, evt, keyValuePairs, extensionsNamespace);
         }
 
         public bool SetLastSyncDateTime(User usr, Event evt, DateTimeOffset? lastSync = null)

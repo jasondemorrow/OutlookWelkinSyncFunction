@@ -18,19 +18,18 @@ namespace OutlookWelkinSyncFunction
             this.log = log;
         }
         
-        public void Sync(WelkinEvent welkinEvent,
+        public string Sync(WelkinEvent welkinEvent,
                          User outlookUser,
                          WelkinPractitioner practitioner,
-                         Dictionary<string, Dictionary<string, WelkinEvent>> welkinEventsByUserNameThenEventId,
                          string welkinCalendarId,
-                         string commonUserName)
+                         string calendarName = null)
         {
-            log.LogInformation($"Found newly updated Welkin event '{welkinEvent}' for user {commonUserName}.");
             DateTimeOffset presumptiveLastSyncTime = DateTimeOffset.UtcNow; // must be before any update
             WelkinLastSyncEntry lastSync = null;
             Event createdOutlookEvent = null;
             EventLink eventLink = null;
             bool updateSyncTime = true;
+            string syncId = null;
 
             // We ignore unavailable times and working hours when updating event. The reason for this is that we want 
             // the user to see when they've scheduled a conflict in Outlook. If we don't sync, they might not see it.
@@ -44,7 +43,7 @@ namespace OutlookWelkinSyncFunction
                 if (welkinClient.IsPlaceHolderEvent(welkinEvent))
                 {
                     log.LogInformation("This is a placeholder event created for an Outlook event. Skipping...");
-                    return;
+                    return syncId;
                 }
 
                 lastSync = welkinClient.FindLastSyncEntryFor(welkinEvent); // what about first time?
@@ -53,7 +52,7 @@ namespace OutlookWelkinSyncFunction
                 {
                     log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
                     updateSyncTime = false;
-                    return;
+                    return syncId;
                 }
 
                 eventLink = new EventLink(null, welkinEvent, outlookClient, welkinClient, outlookUser, practitioner, log);
@@ -62,7 +61,11 @@ namespace OutlookWelkinSyncFunction
                 if (!eventLink.FetchAndPopulateIfExists(EventLink.Direction.WelkinToOutlook))
                 {
                     eventLink.TargetOutlookEvent = 
-                        outlookClient.CreateOutlookEventFromWelkinEvent(outlookUser, welkinEvent, practitioner);
+                        outlookClient.CreateOutlookEventFromWelkinEvent(
+                            outlookUser, 
+                            welkinEvent, 
+                            practitioner, 
+                            calendarName);
                     createdPlaceholderOutlookEvent = true;
                     createdOutlookEvent = eventLink.TargetOutlookEvent;
                     eventLink.Ensure(EventLink.Direction.WelkinToOutlook);
@@ -78,11 +81,12 @@ namespace OutlookWelkinSyncFunction
                     }
                     else
                     {
-                        outlookClient.Update(outlookUser, eventLink.LinkedOutlookEvent);
+                        outlookClient.Update(outlookUser, eventLink.LinkedOutlookEvent, calendarName);
                     }
                 }
 
                 log.LogInformation($"Successfully sync'ed Welkin event {welkinEvent} with Outlook event {eventLink.LinkedOutlookEvent.ICalUId}.");
+                syncId = welkinEvent.Id;
             }
             catch (Exception e)
             {
@@ -91,7 +95,7 @@ namespace OutlookWelkinSyncFunction
                 if (createdOutlookEvent != null)
                 {
                     log.LogInformation("Deleting created placeholder event in Outlook...");
-                    this.outlookClient.Delete(outlookUser, createdOutlookEvent);
+                    this.outlookClient.Delete(outlookUser, createdOutlookEvent, calendarName);
                 }
             }
             finally
@@ -104,6 +108,8 @@ namespace OutlookWelkinSyncFunction
                     welkinClient.SetLastSyncDateTimeFor(welkinEvent, lastSyncEntryId, presumptiveLastSyncTime);
                 }
             }
+
+            return syncId;
         }
     }
 }

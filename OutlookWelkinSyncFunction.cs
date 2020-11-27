@@ -118,15 +118,25 @@ namespace OutlookWelkinSyncFunction
                 // First, sync newly updated Outlook events for user
                 foreach (Event outlookEvent in recentlyUpdatedOutlookEvents)
                 {
+                    log.LogInformation($"Found newly updated Outlook event '{outlookEvent.ICalUId}' for user {userName}.");
                     try
                     {
-                        outlookEventSync.Sync(
+                        string syncId = outlookEventSync.Sync(
                             outlookEvent, 
                             outlookUser, 
-                            welkinPractitionerByUserName[userName], 
-                            welkinEventsByUserNameThenEventId, 
-                            welkinCalendarIdsByUserName[userName], 
-                            userName);
+                            welkinPractitionerByUserName[userName],
+                            welkinCalendarIdsByUserName[userName]);
+                
+                        if (syncId != null && welkinEventsByUserNameThenEventId.ContainsKey(userName) && 
+                            welkinEventsByUserNameThenEventId[userName].ContainsKey(syncId))
+                        {
+                            // If the existing Welkin event has also been recently updated, we can skip it later
+                            welkinEventsByUserNameThenEventId[userName].Remove(syncId);
+                            log.LogInformation($@"Welkin event with ID {syncId} has recently been updated, " +
+                                                "but will be skipped since its corresponding Outlook event " +
+                                                "with ID {evt.ICalUId} has also been recently updated and " +
+                                                "therefore sync'ed.");
+                        }
                     }
                     catch (Exception e)
                     {
@@ -140,15 +150,14 @@ namespace OutlookWelkinSyncFunction
                 {
                     foreach (WelkinEvent welkinEvent in welkinEventsByUserNameThenEventId[userName].Values)
                     {
+                        log.LogInformation($"Found newly updated Welkin event '{welkinEvent}' for user {userName}.");
                         try
                         {
-                            welkinEventSync.Sync(
+                            string syncId = welkinEventSync.Sync(
                                 welkinEvent, 
                                 outlookUser, 
                                 welkinPractitionerByUserName[userName], 
-                                welkinEventsByUserNameThenEventId, 
-                                welkinCalendarIdsByUserName[userName], 
-                                userName);
+                                welkinCalendarIdsByUserName[userName]);
                         }
                         catch (Exception e)
                         {
@@ -165,7 +174,8 @@ namespace OutlookWelkinSyncFunction
         private static string UserNameFrom(string email)
         {
             if(string.IsNullOrEmpty(email)) return null;
-            int idx = email.IndexOf('@');
+            int idx = email.IndexOf('+');
+            if(idx == -1) idx = email.IndexOf('@');
             if(idx == -1) return null;
             return email.Substring(0, idx);
         }

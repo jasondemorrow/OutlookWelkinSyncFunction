@@ -18,13 +18,13 @@ namespace OutlookWelkinSyncFunction
             this.log = log;
         }
         
-        public void Sync(Event outlookEvent,
+        public string Sync(Event outlookEvent,
                          User outlookUser,
                          WelkinPractitioner practitioner,
-                         Dictionary<string, Dictionary<string, WelkinEvent>> welkinEventsByUserNameThenEventId,
                          string welkinCalendarId,
-                         string commonUserName)
+                         string calendarName = null)
         {
+            string syncId = null;
             bool updateSyncTime = true;
             bool placeholderEventCreated = false;
             DateTimeOffset presumptiveLastSyncTime = DateTimeOffset.UtcNow; // must be before any update
@@ -32,11 +32,10 @@ namespace OutlookWelkinSyncFunction
 
             try
             {
-                log.LogInformation($"Found newly updated Outlook event '{outlookEvent.ICalUId}' for user {commonUserName}.");
                 if (OutlookClient.IsPlaceHolderEvent(outlookEvent))
                 {
                     log.LogInformation("This is a placeholder event created for a Welkin event. Skipping...");
-                    return;
+                    return syncId;
                 }
 
                 DateTime? lastSync = OutlookClient.GetLastSyncDateTime(outlookEvent);
@@ -46,7 +45,7 @@ namespace OutlookWelkinSyncFunction
                 {
                     log.LogInformation("This event hasn't been updated since its last sync. Skipping...");
                     updateSyncTime = false;
-                    return;
+                    return syncId;
                 }
 
                 if (!eventLink.FetchAndPopulateIfExists(EventLink.Direction.OutlookToWelkin))
@@ -68,31 +67,21 @@ namespace OutlookWelkinSyncFunction
                 }
                 else if (!placeholderEventCreated) // Outlook event needs update
                 {
-                    Event updatedEvent = outlookClient.Update(outlookUser, outlookEvent);
-                }
-                
-                if (welkinEventsByUserNameThenEventId.ContainsKey(commonUserName) && 
-                    welkinEventsByUserNameThenEventId[commonUserName].ContainsKey(eventLink.LinkedWelkinEvent.Id))
-                {
-                    // If the existing Welkin event has also been recently updated, we can skip it later
-                    welkinEventsByUserNameThenEventId[commonUserName].Remove(eventLink.LinkedWelkinEvent.Id);
-                    log.LogInformation($@"Welkin event with ID {eventLink.LinkedWelkinEvent.Id} has recently been updated, " +
-                                        "but will be skipped since its corresponding Outlook event with ID {evt.ICalUId} has " + 
-                                        "also been recently updated and therefore sync'ed.");
+                    Event updatedEvent = outlookClient.Update(outlookUser, outlookEvent, calendarName);
                 }
 
                 log.LogInformation(
                     $"Successfully sync'ed Outlook event {outlookEvent.ICalUId} with Welkin event {eventLink.LinkedWelkinEvent.Id}.");
+                syncId = eventLink.LinkedWelkinEvent.Id;
             }
             catch (Exception e)
             {
-                string trace = Exceptions.ToStringRecursively(e);
-                log.LogError($"Sync failed with Outlook event {outlookEvent.ICalUId} for user {commonUserName}: {trace}");
                 if (placeholderEventCreated)
                 {
                     log.LogInformation("Deleting created placeholder event in Welkin...");
                     this.welkinClient.DeleteEvent(eventLink.TargetWelkinEvent);
                 }
+                throw e;
             }
             finally
             {
@@ -101,6 +90,8 @@ namespace OutlookWelkinSyncFunction
                     outlookClient.SetLastSyncDateTime(outlookUser, outlookEvent, presumptiveLastSyncTime);
                 }
             }
+
+            return syncId;
         }
     }
 }

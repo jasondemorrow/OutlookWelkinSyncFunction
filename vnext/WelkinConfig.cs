@@ -1,7 +1,7 @@
-using System;
-
-namespace OutlookWelkinSyncFunction
+namespace OutlookWelkinSync
 {
+    using System;
+
     public class WelkinConfig
     {
         /// <summary>
