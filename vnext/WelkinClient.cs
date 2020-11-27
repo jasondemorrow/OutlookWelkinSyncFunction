@@ -15,9 +15,8 @@ namespace OutlookWelkinSync
     using Ninject;
     using RestSharp;
 
-    public class CachingWelkinClient
+    public class WelkinClient
     {
-        public static readonly CachingWelkinClient Instance = new CachingWelkinClient();
         private MemoryCache internalCache = new MemoryCache(new MemoryCacheOptions()
         {
             SizeLimit = 1024
@@ -31,12 +30,11 @@ namespace OutlookWelkinSync
         private readonly string token;
         private readonly string dummyPatientId;
 
-        private CachingWelkinClient()
+        public WelkinClient(WelkinConfig config, ILogger logger, [Named("DummyPatientId")] string dummyPatientId)
         {
-            IKernel ninjectKernel = new StandardKernel(NinjectModules.CurrentModule);
-            this.config = ninjectKernel.Get<WelkinConfig>();
-            this.logger = ninjectKernel.Get<ILogger>();
-            this.dummyPatientId = ninjectKernel.Get<string>(NinjectModules.WelkinDummyPatientIdBinding);
+            this.config = config;
+            this.logger = logger;
+            this.dummyPatientId = dummyPatientId;
             var payload = new Dictionary<string, object>()
             {
                 { "iss", config.ClientId },

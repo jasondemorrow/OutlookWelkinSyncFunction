@@ -9,9 +9,8 @@ namespace OutlookWelkinSync
     using Microsoft.Identity.Client;
     using Ninject;
 
-    public class CachingOutlookClient
+    public class OutlookClient
     {
-        public static readonly CachingOutlookClient Instance = new CachingOutlookClient();
         private MemoryCache internalCache = new MemoryCache(new MemoryCacheOptions()
         {
             SizeLimit = 1024
@@ -25,11 +24,10 @@ namespace OutlookWelkinSync
         private readonly GraphServiceClient graphClient;
         private readonly ILogger logger;
 
-        private CachingOutlookClient()
+        public OutlookClient(OutlookConfig config, ILogger logger)
         {
-            IKernel ninjectKernel = new StandardKernel(NinjectModules.CurrentModule);
-            this.config = ninjectKernel.Get<OutlookConfig>();
-            this.logger = ninjectKernel.Get<ILogger>();
+            this.config = config;
+            this.logger = logger;
             IConfidentialClientApplication app = 
                         ConfidentialClientApplicationBuilder
                             .Create(config.ClientId)

@@ -8,7 +8,6 @@ namespace OutlookWelkinSync
     {
         public static NinjectModule CurrentModule { get; set; } = new ProdModule();
         public static ILogger CurrentLogger { get; set; } = null;
-        public static readonly string WelkinDummyPatientIdBinding = "WelkinDummyPatientIdBinding";
 
         public class ProdModule : NinjectModule
         {
@@ -29,7 +28,31 @@ namespace OutlookWelkinSync
                 Bind<OutlookConfig>().To<OutlookConfig>(); // just create a default instance, don't modify
                 Bind<string>()
                     .ToMethod((context) => Environment.GetEnvironmentVariable("WelkinDummyPatientId"))
-                    .Named(WelkinDummyPatientIdBinding);
+                    .InSingletonScope()
+                    .Named("DummyPatientId");
+                Bind<OutlookClient>().To<OutlookClient>().InSingletonScope();
+                Bind<WelkinClient>().To<WelkinClient>().InSingletonScope();
+                Bind<OutlookSyncTask>().To<NameBasedOutlookSyncTask>();
+
+                string sharedCalendarUser = Environment.GetEnvironmentVariable("OutlookSharedCalendarUser");
+                string sharedCalendarName = Environment.GetEnvironmentVariable("OutlookSharedCalendarName");
+
+                if (!string.IsNullOrEmpty(sharedCalendarUser) && !string.IsNullOrEmpty(sharedCalendarName))
+                {
+                    Bind<string>()
+                        .ToConstant(sharedCalendarUser)
+                        .InSingletonScope()
+                        .Named("OutlookSharedCalendarUser");
+                    Bind<string>()
+                        .ToConstant(sharedCalendarName)
+                        .InSingletonScope()
+                        .Named("OutlookSharedCalendarName");
+                    Bind<WelkinSyncTask>().To<SharedCalendarWelkinSyncTask>();
+                }
+                else
+                {
+                    Bind<WelkinSyncTask>().To<NameBasedWelkinSyncTask>();
+                }
             }
         }
     }
