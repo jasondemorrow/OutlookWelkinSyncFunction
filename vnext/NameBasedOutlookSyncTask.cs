@@ -17,7 +17,33 @@ namespace OutlookWelkinSync
 
         public override WelkinEvent Sync()
         {
-            throw new System.NotImplementedException();
+            Throw.IfAnyAreNull(this.outlookClient, this.welkinClient, this.outlookEvent);
+            WelkinEvent syncedTo = null;
+            string linkedWelkinEventId = this.outlookClient.LinkedWelkinEventIdFrom(this.outlookEvent);
+
+            if (!string.IsNullOrEmpty(linkedWelkinEventId))
+            {
+                syncedTo = this.welkinClient.RetrieveEvent(linkedWelkinEventId);
+                if (syncedTo.SyncWith(this.outlookEvent)) // Welkin needs to be updated
+                {
+                    syncedTo = this.welkinClient.CreateOrUpdateEvent(syncedTo, syncedTo.Id);
+                }
+                else // Outlook needs to be updated
+                {
+                    this.outlookClient.Update(this.outlookEvent);
+                }
+            }
+            else // Welkin needs to be created
+            {
+                string eventOwnerEmail = this.outlookEvent.Calendar.Owner.Address;
+                WelkinWorker worker = this.welkinClient.FindWorker(eventOwnerEmail);
+                WelkinCalendar calendar = this.welkinClient.RetrieveCalendarFor(worker);
+                Throw.IfAnyAreNull(eventOwnerEmail, worker, calendar);
+                WelkinEvent placeholderEvent = this.welkinClient.GeneratePlaceholderEventForCalendar(calendar);
+                placeholderEvent.SyncWith(this.outlookEvent);
+            }
+
+            return syncedTo;
         }
     }
 }

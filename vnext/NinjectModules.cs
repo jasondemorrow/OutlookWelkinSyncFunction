@@ -27,26 +27,26 @@ namespace OutlookWelkinSync
                 Bind<WelkinConfig>().To<WelkinConfig>(); // just create a default instance, don't modify
                 Bind<OutlookConfig>().To<OutlookConfig>(); // just create a default instance, don't modify
                 Bind<string>()
-                    .ToMethod((context) => Environment.GetEnvironmentVariable("WelkinDummyPatientId"))
+                    .ToMethod((context) => Environment.GetEnvironmentVariable(Constants.DummyPatientEnvVarName))
                     .InSingletonScope()
                     .Named("DummyPatientId");
                 Bind<OutlookClient>().To<OutlookClient>().InSingletonScope();
                 Bind<WelkinClient>().To<WelkinClient>().InSingletonScope();
                 Bind<OutlookSyncTask>().To<NameBasedOutlookSyncTask>();
 
-                string sharedCalendarUser = Environment.GetEnvironmentVariable("OutlookSharedCalendarUser");
-                string sharedCalendarName = Environment.GetEnvironmentVariable("OutlookSharedCalendarName");
+                string sharedCalendarUser = Environment.GetEnvironmentVariable(Constants.SharedCalUserEnvVarName);
+                string sharedCalendarName = Environment.GetEnvironmentVariable(Constants.SharedCalNameEnvVarName);
 
                 if (!string.IsNullOrEmpty(sharedCalendarUser) && !string.IsNullOrEmpty(sharedCalendarName))
                 {
                     Bind<string>()
                         .ToConstant(sharedCalendarUser)
                         .InSingletonScope()
-                        .Named("OutlookSharedCalendarUser");
+                        .Named(Constants.SharedCalUserEnvVarName);
                     Bind<string>()
                         .ToConstant(sharedCalendarName)
                         .InSingletonScope()
-                        .Named("OutlookSharedCalendarName");
+                        .Named(Constants.SharedCalNameEnvVarName);
                     Bind<WelkinSyncTask>().To<SharedCalendarWelkinSyncTask>();
                 }
                 else

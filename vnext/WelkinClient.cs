@@ -23,7 +23,7 @@ namespace OutlookWelkinSync
         });
         private readonly MemoryCacheEntryOptions cacheEntryOptions = 
             new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromSeconds(180))
+                .SetAbsoluteExpiration(TimeSpan.FromSeconds(60))
                 .SetSize(1);
         private readonly WelkinConfig config;
         private readonly ILogger logger;
@@ -145,6 +145,12 @@ namespace OutlookWelkinSync
         private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
         {
             string url = $"{config.ApiUrl}{path}";
+            IEnumerable<T> found;
+            if (internalCache.TryGetValue(url, out found))
+            {
+                return found;
+            }
+
             var client = new RestClient(url);
 
             var request = new RestRequest(Method.GET);
@@ -166,7 +172,69 @@ namespace OutlookWelkinSync
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
 
-            return JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
+            found = JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
+
+            internalCache.Set(url, found, cacheEntryOptions);
+            return found;
+        }
+
+        public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, string id = null)
+        {
+            return this.CreateOrUpdateObject(evt, Constants.CalendarEventResourceName, id);
+        }
+
+        public WelkinEvent RetrieveEvent(string eventId)
+        {
+            return this.RetrieveObject<WelkinEvent>(eventId, Constants.CalendarEventResourceName);
+        }
+
+        public void DeleteEvent(WelkinEvent evt)
+        {
+            this.DeleteObject(evt.Id, Constants.CalendarEventResourceName);
+        }
+
+        public WelkinCalendar RetrieveCalendarFor(WelkinWorker worker)
+        {
+            var client = new RestClient(config.ApiUrl + "calendars?worker=" + worker.Id);
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            var response = client.Execute(request);
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JArray data = result.First?.ToObject<JProperty>()?.Value.ToObject<JArray>();
+            if (data == null)
+            {
+                return null;
+            }
+            JObject calendar = data.First?.ToObject<JObject>();
+            if (calendar == null)
+            {
+                return null;
+            }
+            return JsonConvert.DeserializeObject<WelkinCalendar>(calendar.ToString());
+        }
+
+        public WelkinWorker FindWorker(string email)
+        {
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["email"] = email;
+            IEnumerable<WelkinWorker> found = SearchObjects<WelkinWorker>("workers", parameters);
+            return found.FirstOrDefault();
+        }
+
+        public WelkinEvent GeneratePlaceholderEventForCalendar(WelkinCalendar calendar)
+        {
+            WelkinEvent evt = new WelkinEvent();
+            evt.CalendarId = calendar.Id;
+            evt.IsAllDay = true;
+            evt.Day = DateTime.UtcNow.Date;
+            evt.Modality = Constants.DefaultModality;
+            evt.AppointmentType = Constants.DefaultAppointmentType;
+            evt.PatientId = this.dummyPatientId;
+            evt.IgnoreUnavailableTimes = true;
+            evt.IgnoreWorkingHours = true;
+            
+            return evt;
         }
     }
 }
