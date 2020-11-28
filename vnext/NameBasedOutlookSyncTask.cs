@@ -1,5 +1,6 @@
 namespace OutlookWelkinSync
 {
+    using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
 
     /// <summary>
@@ -10,17 +11,20 @@ namespace OutlookWelkinSync
     /// </summary>
     public class NameBasedOutlookSyncTask : OutlookSyncTask
     {
-        public NameBasedOutlookSyncTask(Event outlookEvent, OutlookClient outlookClient, WelkinClient welkinClient) 
-        : base(outlookEvent, outlookClient, welkinClient)
+        public NameBasedOutlookSyncTask(Event outlookEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger) 
+        : base(outlookEvent, outlookClient, welkinClient, logger)
         {
         }
 
         public override WelkinEvent Sync()
         {
-            Throw.IfAnyAreNull(this.outlookClient, this.welkinClient, this.outlookEvent);
             WelkinEvent syncedTo = null;
-            string linkedWelkinEventId = this.outlookClient.LinkedWelkinEventIdFrom(this.outlookEvent);
+            if (!this.ShouldSync())
+            {
+                return syncedTo;
+            }
 
+            string linkedWelkinEventId = this.outlookClient.LinkedWelkinEventIdFrom(this.outlookEvent);
             if (!string.IsNullOrEmpty(linkedWelkinEventId))
             {
                 syncedTo = this.welkinClient.RetrieveEvent(linkedWelkinEventId);
@@ -35,12 +39,22 @@ namespace OutlookWelkinSync
             }
             else // Welkin needs to be created
             {
+                // Find the Welkin user and calendar for the Outlook event owner
                 string eventOwnerEmail = this.outlookEvent.Calendar.Owner.Address;
                 WelkinWorker worker = this.welkinClient.FindWorker(eventOwnerEmail);
                 WelkinCalendar calendar = this.welkinClient.RetrieveCalendarFor(worker);
                 Throw.IfAnyAreNull(eventOwnerEmail, worker, calendar);
+                // Generate and save a placeholder event in Welkin with a dummy patient
                 WelkinEvent placeholderEvent = this.welkinClient.GeneratePlaceholderEventForCalendar(calendar);
                 placeholderEvent.SyncWith(this.outlookEvent);
+                placeholderEvent = this.welkinClient.CreateOrUpdateEvent(placeholderEvent, placeholderEvent.Id);
+                // Link the Outlook and Welkin events using external metadata fields
+                OutlookToWelkinLink outlookToWelkinLink = new OutlookToWelkinLink(
+                    this.outlookClient, this.welkinClient, this.outlookEvent, placeholderEvent, this.logger);
+                if (outlookToWelkinLink.CreateIfMissing())
+                {
+                    // Link did not previously exist and needs to be created from Welkin to Outlook as well
+                }
             }
 
             return syncedTo;

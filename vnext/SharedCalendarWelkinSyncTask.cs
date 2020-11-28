@@ -1,5 +1,6 @@
 namespace OutlookWelkinSync
 {
+    using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
     using Ninject;
 
@@ -15,10 +16,10 @@ namespace OutlookWelkinSync
         private readonly string sharedCalendarName;
 
         public SharedCalendarWelkinSyncTask(
-            WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient,
+            WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger,
             [Named(Constants.SharedCalUserEnvVarName)] string sharedCalendarUser,
             [Named(Constants.SharedCalNameEnvVarName)] string sharedCalendarName
-            ) : base(welkinEvent, outlookClient, welkinClient)
+            ) : base(welkinEvent, outlookClient, welkinClient, logger)
         {
             this.sharedCalendarUser = sharedCalendarUser;
             this.sharedCalendarName = sharedCalendarName;

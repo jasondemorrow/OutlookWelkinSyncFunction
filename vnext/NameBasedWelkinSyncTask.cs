@@ -1,5 +1,6 @@
 namespace OutlookWelkinSync
 {
+    using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
     
     /// <summary>
@@ -10,8 +11,8 @@ namespace OutlookWelkinSync
     /// </summary>
     public class NameBasedWelkinSyncTask : WelkinSyncTask
     {
-        public NameBasedWelkinSyncTask(WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient) 
-        : base(welkinEvent, outlookClient, welkinClient)
+        public NameBasedWelkinSyncTask(WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger) 
+        : base(welkinEvent, outlookClient, welkinClient, logger)
         {
         }
 
