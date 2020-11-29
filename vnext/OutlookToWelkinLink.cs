@@ -64,5 +64,21 @@ namespace OutlookWelkinSync
 
             return false;
         }
+
+        /// <summary>
+        /// Roll back any changes to the target Outlook event's Welkin link.
+        /// </summary>
+        public void Rollback()
+        {
+            Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
+            // TODO: This isn't so much a rollback as an erasure. Would need to keep state to make this more accurate.
+            keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = ""; // Empty string => not set (unset)
+            this.outlookClient.MergeOpenExtensionPropertiesOnEvent(
+                this.sourceOutlookEvent, 
+                keyValuePairs, 
+                Constants.OutlookEventExtensionsNamespace);
+            string msg = $"Successfully removed link from Outlook event {this.sourceOutlookEvent.ICalUId} to any Welkin event";
+            this.logger.LogInformation(msg);
+        }
     }
 }

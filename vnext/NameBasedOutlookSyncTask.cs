@@ -44,16 +44,31 @@ namespace OutlookWelkinSync
                 WelkinWorker worker = this.welkinClient.FindWorker(eventOwnerEmail);
                 WelkinCalendar calendar = this.welkinClient.RetrieveCalendarFor(worker);
                 Throw.IfAnyAreNull(eventOwnerEmail, worker, calendar);
+
                 // Generate and save a placeholder event in Welkin with a dummy patient
                 WelkinEvent placeholderEvent = this.welkinClient.GeneratePlaceholderEventForCalendar(calendar);
                 placeholderEvent.SyncWith(this.outlookEvent);
                 placeholderEvent = this.welkinClient.CreateOrUpdateEvent(placeholderEvent, placeholderEvent.Id);
+
                 // Link the Outlook and Welkin events using external metadata fields
                 OutlookToWelkinLink outlookToWelkinLink = new OutlookToWelkinLink(
                     this.outlookClient, this.welkinClient, this.outlookEvent, placeholderEvent, this.logger);
+
                 if (outlookToWelkinLink.CreateIfMissing())
                 {
                     // Link did not previously exist and needs to be created from Welkin to Outlook as well
+                    WelkinToOutlookLink welkinToOutlookLink = new WelkinToOutlookLink(
+                        this.outlookClient, this.welkinClient, placeholderEvent, this.outlookEvent, this.logger);
+                    
+                    if (!welkinToOutlookLink.CreateIfMissing())
+                    {
+                        outlookToWelkinLink.Rollback();
+                        throw new LinkException(
+                            $"Failed to create link from Welkin event {placeholderEvent.Id} " +
+                            $"to Outlook event {this.outlookEvent.ICalUId}.");
+                    }
+
+                    syncedTo = placeholderEvent;
                 }
             }
 

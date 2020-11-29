@@ -188,9 +188,9 @@ namespace OutlookWelkinSync
             return this.RetrieveObject<WelkinEvent>(eventId, Constants.CalendarEventResourceName);
         }
 
-        public void DeleteEvent(WelkinEvent evt)
+        public void DeleteEvent(WelkinEvent welkinEvent)
         {
-            this.DeleteObject(evt.Id, Constants.CalendarEventResourceName);
+            this.DeleteObject(welkinEvent.Id, Constants.CalendarEventResourceName);
         }
 
         public WelkinCalendar RetrieveCalendarFor(WelkinWorker worker)
@@ -214,12 +214,39 @@ namespace OutlookWelkinSync
             return JsonConvert.DeserializeObject<WelkinCalendar>(calendar.ToString());
         }
 
+        public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, string id = null)
+        {
+            return this.CreateOrUpdateObject(external, Constants.ExternalIdResourceName, id);
+        }
+
+        public void DeleteExternalId(WelkinExternalId externalId)
+        {
+            this.DeleteObject(externalId.Id, Constants.ExternalIdResourceName);
+        }
+
         public WelkinWorker FindWorker(string email)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             parameters["email"] = email;
             IEnumerable<WelkinWorker> found = SearchObjects<WelkinWorker>("workers", parameters);
             return found.FirstOrDefault();
+        }
+
+        public WelkinExternalId FindExternalMappingFor(WelkinEvent internalEvent, Event externalEvent = null)
+        {
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            if (externalEvent != null)
+            {
+                parameters["namespace"] = Constants.WelkinEventExtensionNamespacePrefix + externalEvent.ICalUId;
+                string derivedGuid = Guids.FromText(externalEvent.ICalUId).ToString();
+                parameters["external_id"] = derivedGuid;
+            }
+            parameters["resource"] = Constants.CalendarEventResourceName;
+            parameters["welkin_id"] = internalEvent.Id;
+            IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
+            return foundLinks
+                        .Where(x => x.Namespace.StartsWith(Constants.WelkinEventExtensionNamespacePrefix))
+                        .FirstOrDefault();
         }
 
         public WelkinEvent GeneratePlaceholderEventForCalendar(WelkinCalendar calendar)
