@@ -9,7 +9,7 @@ namespace OutlookWelkinSync
         public string Id { get; set; }
 
         [JsonProperty("worker_id")]
-        public string PractitionerId { get; set; }
+        public string WorkerId { get; set; }
 
         [JsonProperty("updated_at")]
         public DateTime Updated { get; set; }

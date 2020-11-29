@@ -193,6 +193,11 @@ namespace OutlookWelkinSync
             this.DeleteObject(welkinEvent.Id, Constants.CalendarEventResourceName);
         }
 
+        public WelkinCalendar RetrieveCalendar(string calendarId)
+        {
+            return this.RetrieveObject<WelkinCalendar>(calendarId, Constants.CalendarResourceName);
+        }
+
         public WelkinCalendar RetrieveCalendarFor(WelkinWorker worker)
         {
             var client = new RestClient(config.ApiUrl + "calendars?worker=" + worker.Id);
@@ -224,11 +229,16 @@ namespace OutlookWelkinSync
             this.DeleteObject(externalId.Id, Constants.ExternalIdResourceName);
         }
 
+        public WelkinWorker RetrieveWorker(string workerId)
+        {
+            return this.RetrieveObject<WelkinWorker>(workerId, Constants.WorkerResourceName);
+        }
+
         public WelkinWorker FindWorker(string email)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             parameters["email"] = email;
-            IEnumerable<WelkinWorker> found = SearchObjects<WelkinWorker>("workers", parameters);
+            IEnumerable<WelkinWorker> found = SearchObjects<WelkinWorker>(Constants.WorkerResourceName, parameters);
             return found.FirstOrDefault();
         }
 
@@ -249,6 +259,49 @@ namespace OutlookWelkinSync
                         .FirstOrDefault();
         }
 
+        public WelkinLastSyncEntry RetrieveLastSyncFor(WelkinEvent internalEvent)
+        {
+            // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["resource"] = Constants.CalendarEventResourceName;
+            parameters["welkin_id"] = internalEvent.Id;
+            IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
+            if (foundLinks == null || !foundLinks.Any())
+            {
+                return null;
+            }
+            WelkinExternalId externalId = 
+                foundLinks
+                    .Where(x => x.Namespace.StartsWith(Constants.WelkinLastSyncExtensionNamespace))
+                    .FirstOrDefault();
+            return new WelkinLastSyncEntry(externalId);
+        }
+
+        public bool UpdateLastSyncFor(WelkinEvent internalEvent, string existingId = null, DateTimeOffset? lastSync = null)
+        {
+            if (lastSync == null)
+            {
+                lastSync = DateTimeOffset.UtcNow;
+            }
+
+            // We store last sync time for an event as an external ID namespace. 
+            // This is a hack to make event types extensible.
+            string isoDate = lastSync.Value.ToString("o", CultureInfo.InvariantCulture);
+            string syntheticNamespace = Constants.WelkinLastSyncExtensionNamespace + ":::" + isoDate;
+
+            WelkinExternalId welkinExternalId = new WelkinExternalId
+            {
+                Id = existingId,
+                Resource = Constants.CalendarEventResourceName,
+                ExternalId = Guid.NewGuid().ToString(), // does not matter
+                InternalId = internalEvent.Id,
+                Namespace = syntheticNamespace
+            };
+            welkinExternalId = this.CreateOrUpdateExternalId(welkinExternalId, existingId);
+
+            return welkinExternalId != null && welkinExternalId.InternalId.Equals(internalEvent.Id);
+        }
+
         public WelkinEvent GeneratePlaceholderEventForCalendar(WelkinCalendar calendar)
         {
             WelkinEvent evt = new WelkinEvent();
@@ -262,6 +315,12 @@ namespace OutlookWelkinSync
             evt.IgnoreWorkingHours = true;
             
             return evt;
+        }
+
+        public bool IsPlaceHolderEvent(WelkinEvent evt)
+        {
+            string patientId = evt?.PatientId;
+            return !string.IsNullOrEmpty(patientId) && patientId.Equals(this.dummyPatientId);
         }
     }
 }

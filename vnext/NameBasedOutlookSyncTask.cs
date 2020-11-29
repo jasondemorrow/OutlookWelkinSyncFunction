@@ -34,7 +34,7 @@ namespace OutlookWelkinSync
                 }
                 else // Outlook needs to be updated
                 {
-                    this.outlookClient.Update(this.outlookEvent);
+                    this.outlookClient.UpdateEvent(this.outlookEvent);
                 }
             }
             else // Welkin needs to be created

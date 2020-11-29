@@ -4,19 +4,21 @@ namespace OutlookWelkinSync
 {
     public static class Constants
     {
-        public static readonly string OutlookEventExtensionsNamespace = "sync.outlook.welkinhealth.com";
-        public static readonly string WelkinPatientExtensionNamespace = "patient_placeholders_sync_outlook_welkinhealth_com";
-        public static readonly string WelkinEventExtensionNamespacePrefix = "sync_outlook_";
-        public static readonly string WelkinLastSyncExtensionNamespace = "sync_last_datetime";
-        public static readonly string OutlookLinkedWelkinEventIdKey = "LinkedWelkinEventId";
-        public static readonly string OutlookPlaceHolderEventKey = "IsOutlookPlaceHolderEvent";
-        public static readonly string OutlookLastSyncDateTimeKey = "LastSyncDateTime";
-        public static readonly string DefaultModality = "call";
-        public static readonly string DefaultAppointmentType = "intake_call";
-        public static readonly string WelkinCancelledOutcome = "cancelled";
-        public static readonly string CalendarEventResourceName = "calendar_events";
-        public static readonly string ExternalIdResourceName = "external_ids";
-        public static readonly string SyncNamespaceDateSeparator = ":::";
+        public const string OutlookEventExtensionsNamespace = "sync.outlook.welkinhealth.com";
+        public const string WelkinPatientExtensionNamespace = "patient_placeholders_sync_outlook_welkinhealth_com";
+        public const string WelkinEventExtensionNamespacePrefix = "sync_outlook_";
+        public const string WelkinLastSyncExtensionNamespace = "sync_last_datetime";
+        public const string OutlookLinkedWelkinEventIdKey = "LinkedWelkinEventId";
+        public const string OutlookPlaceHolderEventKey = "IsOutlookPlaceHolderEvent";
+        public const string OutlookLastSyncDateTimeKey = "LastSyncDateTime";
+        public const string DefaultModality = "call";
+        public const string DefaultAppointmentType = "intake_call";
+        public const string WelkinCancelledOutcome = "cancelled";
+        public const string CalendarEventResourceName = "calendar_events";
+        public const string CalendarResourceName = "calendars";
+        public const string ExternalIdResourceName = "external_ids";
+        public const string WorkerResourceName = "workers";
+        public const string SyncNamespaceDateSeparator = ":::";
         public const string DummyPatientEnvVarName = "WelkinDummyPatientId";
         public const string SharedCalUserEnvVarName = "OutlookSharedCalendarUser";
         public const string SharedCalNameEnvVarName = "OutlookSharedCalendarName";

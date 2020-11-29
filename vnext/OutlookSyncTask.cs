@@ -6,7 +6,7 @@ namespace OutlookWelkinSync
 
     public abstract class OutlookSyncTask
     {
-        protected readonly Event outlookEvent;
+        protected Event outlookEvent;
         protected readonly OutlookClient outlookClient;
         protected readonly WelkinClient welkinClient;
         protected readonly ILogger logger;

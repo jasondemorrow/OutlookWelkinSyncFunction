@@ -67,14 +67,19 @@ namespace OutlookWelkinSync
             return false;
         }
 
-        private ICalendarRequestBuilder CalendarRequestBuilderFrom(Event outlookEvent, string userName, string calendarName = null)
+        private ICalendarRequestBuilder CalendarRequestBuilderFrom(Event outlookEvent, string userPrincipal, string calendarName = null)
         {
-            if (userName == null)
+            if (userPrincipal == null)
             {
-                userName = outlookEvent.Calendar.Owner.Address;
+                userPrincipal = outlookEvent.Calendar.Owner.Address;
             }
             
-            IUserRequestBuilder userBuilder = this.graphClient.Users[userName];
+            return CalendarRequestBuilderFrom(userPrincipal, calendarName);
+        }
+
+        private ICalendarRequestBuilder CalendarRequestBuilderFrom(string userPrincipal, string calendarName = null)
+        {
+            IUserRequestBuilder userBuilder = this.graphClient.Users[userPrincipal];
             
             if (calendarName != null)
             {
@@ -86,7 +91,33 @@ namespace OutlookWelkinSync
             }
         }
 
-        public Event Update(Event outlookEvent, string userName = null, string calendarName = null)
+        public Event RetrieveEventWithICalId(
+            string userPrincipal, 
+            string guid, 
+            string extensionsNamespace = Constants.OutlookEventExtensionsNamespace, 
+            string calendarName = null)
+        {
+            string filter = $"iCalUId eq '{guid}'";
+
+            ICalendarEventsCollectionRequest request = 
+                        CalendarRequestBuilderFrom(userPrincipal, calendarName)
+                            .Events
+                            .Request()
+                            .Filter(filter);
+
+            if (extensionsNamespace != null)
+            {
+                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+            }
+            
+            return request
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult()
+                    .FirstOrDefault();
+        }
+
+        public Event UpdateEvent(Event outlookEvent, string userName = null, string calendarName = null)
         {
             return CalendarRequestBuilderFrom(outlookEvent, userName, calendarName)
                 .Events[outlookEvent.Id]
@@ -96,7 +127,7 @@ namespace OutlookWelkinSync
                 .GetResult();
         }
 
-        public void Delete(Event outlookEvent, string userName = null, string calendarName = null)
+        public void DeleteEvent(Event outlookEvent, string userName = null, string calendarName = null)
         {
             CalendarRequestBuilderFrom(outlookEvent, userName, calendarName)
                 .Events[outlookEvent.Id]
@@ -139,7 +170,11 @@ namespace OutlookWelkinSync
 
         public User RetrieveOwningUser(Event outlookEvent)
         {
-            string email = outlookEvent.Calendar.Owner.Address;
+            return RetrieveUser(outlookEvent.Calendar.Owner.Address);
+        }
+
+        public User RetrieveUser(string email)
+        {
             User retrieved;
             if (internalCache.TryGetValue(email, out retrieved))
             {
@@ -182,6 +217,50 @@ namespace OutlookWelkinSync
             }
 
             this.SetOpenExtensionPropertiesOnEvent(outlookEvent, keyValuePairs, extensionsNamespace);
+        }
+
+        public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, string calendarName = null)
+        {
+            // TODO: Include patient info
+            // Create and associate a new Outlook event
+            Event outlookEvent = new Event
+            {
+                Subject = "Placeholder for appointment in Welkin",
+                Body = new ItemBody
+                {
+                    ContentType = BodyType.Html,
+                    Content = $"See your Welkin calendar (user {welkinUser.Email}) for details."
+                },
+                IsAllDay = welkinEvent.IsAllDay,
+                Start = new DateTimeTimeZone
+                {
+                    DateTime = welkinEvent.IsAllDay 
+                        ? welkinEvent.Day.Value.Date.ToString() // Midnight day of
+                        : welkinEvent.Start.Value.ToString(), // Will be UTC
+                    TimeZone = welkinUser.Timezone
+                },
+                End = new DateTimeTimeZone
+                {
+                    DateTime = welkinEvent.IsAllDay 
+                        ? welkinEvent.Day.Value.Date.AddDays(1).ToString() // Midnight day after
+                        : welkinEvent.End.Value.ToString(), // Will be UTC
+                    TimeZone = welkinUser.Timezone
+                }
+            };
+
+            Event createdEvent = CalendarRequestBuilderFrom(welkinUser.Email, calendarName)
+                                        .Events
+                                        .Request()
+                                        .AddAsync(outlookEvent)
+                                        .GetAwaiter()
+                                        .GetResult();
+
+            Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
+            keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = welkinEvent.Id;
+            keyValuePairs[Constants.OutlookPlaceHolderEventKey] = true;
+            this.SetOpenExtensionPropertiesOnEvent(createdEvent, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
+
+            return createdEvent;
         }
     }
 }
