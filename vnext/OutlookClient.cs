@@ -94,7 +94,7 @@ namespace OutlookWelkinSync
         public Event RetrieveEventWithICalId(
             string userPrincipal, 
             string guid, 
-            string extensionsNamespace = Constants.OutlookEventExtensionsNamespace, 
+            string extensionsNamespace = null, 
             string calendarName = null)
         {
             string filter = $"iCalUId eq '{guid}'";
@@ -117,6 +117,60 @@ namespace OutlookWelkinSync
                     .FirstOrDefault();
         }
 
+        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTime start, DateTime end, string extensionsNamespace = null, string calendarName = null)
+        {
+            var queryOptions = new List<QueryOption>()
+            {
+                new QueryOption("startdatetime", start.ToString("o")),
+                new QueryOption("enddatetime", end.ToString("o"))
+            };
+
+            ICalendarEventsCollectionRequest request = 
+                        CalendarRequestBuilderFrom(userPrincipal, calendarName)
+                            .Events
+                            .Request(queryOptions);
+
+            if (extensionsNamespace != null)
+            {
+                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+            }
+
+            return request
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult();
+        }
+
+/*
+        public IEnumerable<Event> RetrieveEventsUpdatedSince(TimeSpan ago, string extensionsNamespace = null, string calendarName = null)
+        {
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end - ago;
+            string filter = $"lastModifiedDateTime lt {end.ToString("o")} and lastModifiedDateTime gt {start.ToString("o")}";
+
+            ICalendarEventsCollectionRequest request = 
+                        this.graphClient.Organization
+                            .Events
+                            .Request()
+                            .Filter(filter);
+
+            if (extensionsNamespace != null)
+            {
+                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+            }
+            
+            return request
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult();
+        }
+*/
+
+        public User RetrieveUserForWelkinWorker(WelkinWorker worker)
+        {
+            return null;
+        }
+        
         public Event UpdateEvent(Event outlookEvent, string userName = null, string calendarName = null)
         {
             return CalendarRequestBuilderFrom(outlookEvent, userName, calendarName)

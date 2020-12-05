@@ -10,14 +10,14 @@ using Microsoft.Identity.Client;
 
 namespace OutlookWelkinSyncFunction
 {
-    public class OutlookClient // TODO: pagination
+    public class OutlookClientOld // TODO: pagination
     {
         private readonly OutlookConfig config;
         private readonly string token;
         private readonly GraphServiceClient graphClient;
         private readonly ILogger logger;
 
-        public OutlookClient(OutlookConfig config, ILogger logger)
+        public OutlookClientOld(OutlookConfig config, ILogger logger)
         {
             this.config = config;
             this.logger = logger;

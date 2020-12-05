@@ -188,6 +188,38 @@ namespace OutlookWelkinSync
             return this.RetrieveObject<WelkinEvent>(eventId, Constants.CalendarEventResourceName);
         }
 
+        public IEnumerable<WelkinEvent> RetrieveEventsUpdatedSince(TimeSpan ago)
+        {
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end - ago;
+            string url = $"{config.ApiUrl}calendar_events?page[from]={start.ToString("o")}&page[to]={end.ToString("o")}";
+            var client = new RestClient(url);
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            var response = client.Execute(request);
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            // Filter out placeholder events created by sync. Welkin API doesn't support querying by patient ID.
+            List<WelkinEvent> events = JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
+            // Cache results for individual retrieval
+            foreach (WelkinEvent welkinEvent in events)
+            {
+                string key = $"{config.ApiUrl}{Constants.CalendarEventResourceName}/{welkinEvent.Id}";
+                internalCache.Set(key, welkinEvent, cacheEntryOptions);
+            }
+
+            return events.Where(this.IsValid);
+        }
+
+        private bool IsValid(WelkinEvent evt)
+        {
+            return 
+                evt != null && 
+                !(evt.PatientId == null || evt.PatientId.Equals(this.dummyPatientId)) && 
+                !(evt.Outcome != null && evt.Outcome.Equals(Constants.WelkinCancelledOutcome));
+        }
+
         public void DeleteEvent(WelkinEvent welkinEvent)
         {
             this.DeleteObject(welkinEvent.Id, Constants.CalendarEventResourceName);
@@ -232,6 +264,48 @@ namespace OutlookWelkinSync
         public WelkinWorker RetrieveWorker(string workerId)
         {
             return this.RetrieveObject<WelkinWorker>(workerId, Constants.WorkerResourceName);
+        }
+
+        public IEnumerable<WelkinWorker> RetrieveAllWorkers()
+        {
+            List<WelkinWorker> workers = new List<WelkinWorker>();
+            var client = new RestClient(config.ApiUrl + Constants.WorkerResourceName);
+            var request = new RestRequest(Method.GET);
+            request.AddHeader("authorization", "Bearer " + this.token);
+            request.AddHeader("cache-control", "no-cache");
+            var response = client.Execute(request);
+            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
+            if (!result.ContainsKey("data"))
+            {
+                return null;
+            }
+            JArray data = result["data"].ToObject<JArray>();
+            IEnumerable<WelkinWorker> page = JsonConvert.DeserializeObject<List<WelkinWorker>>(data.ToString());
+            workers.AddRange(page);
+            JObject links = result["links"]?.ToObject<JObject>();
+            while (links != null && links.ContainsKey("href"))
+            {
+                Links href = links["href"].ToObject<Links>();
+                if (string.IsNullOrEmpty(href.Next))
+                {
+                    break;
+                }
+                client = new RestClient(href.Next);
+                request = new RestRequest(Method.GET);
+                request.AddHeader("authorization", "Bearer " + this.token);
+                request.AddHeader("cache-control", "no-cache");
+                response = client.Execute(request);
+                result = JsonConvert.DeserializeObject(response.Content) as JObject;
+                if (result == null || !result.ContainsKey("data"))
+                {
+                    break;
+                }
+                data = result["data"].ToObject<JArray>();
+                page = JsonConvert.DeserializeObject<List<WelkinWorker>>(data.ToString());
+                workers.AddRange(page);
+                links = result["links"]?.ToObject<JObject>();
+            }
+            return workers;
         }
 
         public WelkinWorker FindWorker(string email)

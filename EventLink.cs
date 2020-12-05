@@ -8,8 +8,8 @@ namespace OutlookWelkinSyncFunction
 {
     public class EventLink
     {
-        private readonly OutlookClient outlookClient;
-        private readonly WelkinClient welkinClient;
+        private readonly OutlookClientOld outlookClient;
+        private readonly WelkinClientOld welkinClient;
         private readonly User outlookUser;
         private readonly WelkinPractitioner welkinUser;
         private readonly ILogger log;
@@ -18,7 +18,7 @@ namespace OutlookWelkinSyncFunction
         public WelkinEvent LinkedWelkinEvent { get; private set; } = null; // might be different from target event
         public Event LinkedOutlookEvent { get; private set; } = null; // might be different from target event
 
-        public EventLink(Event outlookEvent, WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, User outlookUser, WelkinPractitioner welkinUser, ILogger log)
+        public EventLink(Event outlookEvent, WelkinEvent welkinEvent, OutlookClientOld outlookClient, WelkinClientOld welkinClient, User outlookUser, WelkinPractitioner welkinUser, ILogger log)
         {
             Throw.IfAnyAreNull(outlookClient, welkinClient, outlookUser, welkinUser, log);
             Throw.IfAnyAreNull(outlookUser.Id, welkinUser.Id);
@@ -58,7 +58,7 @@ namespace OutlookWelkinSyncFunction
             this.LinkedOutlookEvent = null;
         }
 
-        public static WelkinExternalId ExistsIn(WelkinClient welkinClient, WelkinEvent welkinEvent, ILogger log, Event outlookEvent = null)
+        public static WelkinExternalId ExistsIn(WelkinClientOld welkinClient, WelkinEvent welkinEvent, ILogger log, Event outlookEvent = null)
         {
                 WelkinExternalId externalId = welkinClient.FindExternalMappingFor(welkinEvent, outlookEvent);
 

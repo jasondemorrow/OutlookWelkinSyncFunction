@@ -13,14 +13,14 @@ using RestSharp;
 
 namespace OutlookWelkinSyncFunction
 {
-    public class WelkinClient
+    public class WelkinClientOld
     {
         private readonly WelkinConfig config;
         private readonly ILogger logger;
         private readonly string token;
         private readonly string dummyPatientId;
 
-        public WelkinClient(WelkinConfig config, ILogger logger)
+        public WelkinClientOld(WelkinConfig config, ILogger logger)
         {
             this.config = config;
             this.logger = logger;

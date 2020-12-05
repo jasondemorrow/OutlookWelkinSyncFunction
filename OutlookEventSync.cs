@@ -8,10 +8,10 @@ namespace OutlookWelkinSyncFunction
     public class OutlookEventSync
     {
         private readonly ILogger log;
-        private readonly OutlookClient outlookClient;
-        private readonly WelkinClient welkinClient;
+        private readonly OutlookClientOld outlookClient;
+        private readonly WelkinClientOld welkinClient;
 
-        public OutlookEventSync(OutlookClient outlookClient, WelkinClient welkinClient, ILogger log)
+        public OutlookEventSync(OutlookClientOld outlookClient, WelkinClientOld welkinClient, ILogger log)
         {
             this.outlookClient = outlookClient;
             this.welkinClient = welkinClient;
@@ -32,13 +32,13 @@ namespace OutlookWelkinSyncFunction
 
             try
             {
-                if (OutlookClient.IsPlaceHolderEvent(outlookEvent))
+                if (OutlookClientOld.IsPlaceHolderEvent(outlookEvent))
                 {
                     log.LogInformation("This is a placeholder event created for a Welkin event. Skipping...");
                     return syncId;
                 }
 
-                DateTime? lastSync = OutlookClient.GetLastSyncDateTime(outlookEvent);
+                DateTime? lastSync = OutlookClientOld.GetLastSyncDateTime(outlookEvent);
                 if (lastSync != null && 
                     outlookEvent.LastModifiedDateTime != null && 
                     lastSync.Value >= outlookEvent.LastModifiedDateTime.Value.UtcDateTime)

@@ -8,10 +8,10 @@ namespace OutlookWelkinSyncFunction
     public class WelkinEventSync
     {
         private readonly ILogger log;
-        private readonly OutlookClient outlookClient;
-        private readonly WelkinClient welkinClient;
+        private readonly OutlookClientOld outlookClient;
+        private readonly WelkinClientOld welkinClient;
 
-        public WelkinEventSync(OutlookClient outlookClient, WelkinClient welkinClient, ILogger log)
+        public WelkinEventSync(OutlookClientOld outlookClient, WelkinClientOld welkinClient, ILogger log)
         {
             this.outlookClient = outlookClient;
             this.welkinClient = welkinClient;

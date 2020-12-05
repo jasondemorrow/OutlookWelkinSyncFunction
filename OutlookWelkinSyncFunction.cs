@@ -1,17 +1,40 @@
-using System;
-using System.Collections.Generic;
-using Microsoft.Azure.WebJobs;
-using Microsoft.Extensions.Logging;
-using Microsoft.Graph;
-
 namespace OutlookWelkinSyncFunction
 {
+    using System;
+    using System.Collections.Generic;
+    using Microsoft.Azure.WebJobs;
+    using Microsoft.Extensions.Logging;
+    using Microsoft.Graph;
+    using Ninject;
+    using Sync = OutlookWelkinSync;
+
     public static class OutlookWelkinSyncFunction
     {
         [FunctionName("OutlookWelkinSyncFunction")]
         public static void Run([TimerTrigger("%TimerSchedule%")]TimerInfo timerInfo, ILogger log)
         {
+            // 1. Get all recently updated Welkin events
+            // 2. Create Outlook event retrieval, which may fetch all Welkin workers or a shared calendar
+            // 3. Create sync tasks for each Outlook and Welkin event and run them
             log.LogInformation($"Starting Welkin/Outlook events sync at: {DateTime.Now}");
+            Sync.NinjectModules.CurrentLogger = log;
+            IKernel ninject = new StandardKernel(Sync.NinjectModules.CurrentModule);
+            Sync.OutlookClient outlookClient = ninject.Get<Sync.OutlookClient>();
+            Sync.WelkinClient welkinClient = ninject.Get<Sync.WelkinClient>();
+            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-24);
+            TimeSpan historySpan = DateTime.UtcNow - lastRun;
+            IEnumerable<Sync.WelkinEvent> welkinEvents = welkinClient.RetrieveEventsUpdatedSince(historySpan);
+            foreach (Sync.WelkinEvent evt in welkinEvents)
+            {
+                log.LogInformation(evt.ToString());
+            }
+            IEnumerable<Sync.WelkinWorker> welkinWorkers = welkinClient.RetrieveAllWorkers();
+            foreach (Sync.WelkinWorker worker in welkinWorkers)
+            {
+                log.LogInformation(worker.ToString());
+            }
+            log.LogInformation("Done!");
+            /*
             OutlookClient outlookClient = new OutlookClient(new OutlookConfig(), log);
             WelkinClient welkinClient = new WelkinClient(new WelkinConfig(), log);
             OutlookEventSync outlookEventSync = new OutlookEventSync(outlookClient, welkinClient, log);
@@ -167,8 +190,7 @@ namespace OutlookWelkinSyncFunction
                     }
                 }
             }
-
-            log.LogInformation("Done!");
+            */
         }
 
         private static string UserNameFrom(string email)

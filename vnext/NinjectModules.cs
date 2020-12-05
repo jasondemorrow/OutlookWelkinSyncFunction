@@ -13,16 +13,6 @@ namespace OutlookWelkinSync
         {
             public override void Load()
             {
-                if (CurrentLogger == null)
-                {
-                    ILoggerFactory loggerFactory = LoggerFactory.Create(builder => {
-                        builder
-                            .AddFilter("Microsoft", LogLevel.Warning)
-                            .AddFilter("System", LogLevel.Warning)
-                            .AddConsole();
-                    });
-                    CurrentLogger = loggerFactory.CreateLogger<ProdModule>();
-                }
                 Bind<ILogger>().ToConstant(CurrentLogger);
                 Bind<WelkinConfig>().To<WelkinConfig>(); // just create a default instance, don't modify
                 Bind<OutlookConfig>().To<OutlookConfig>(); // just create a default instance, don't modify
@@ -48,10 +38,12 @@ namespace OutlookWelkinSync
                         .InSingletonScope()
                         .Named(Constants.SharedCalNameEnvVarName);
                     Bind<WelkinSyncTask>().To<SharedCalendarWelkinSyncTask>();
+                    Bind<OutlookEventRetrieval>().To<SharedCalendarOutlookEventRetrieval>();
                 }
                 else
                 {
                     Bind<WelkinSyncTask>().To<NameBasedWelkinSyncTask>();
+                    Bind<OutlookEventRetrieval>().To<WelkinWorkerOutlookEventRetrieval>();
                 }
             }
         }
