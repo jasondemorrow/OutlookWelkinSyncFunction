@@ -5,7 +5,7 @@ namespace OutlookWelkinSync
     using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
     
-    public abstract class OutlookEventRetrieval
+    public class OutlookEventRetrieval
     {
         protected readonly OutlookClient outlookClient;
         protected readonly WelkinClient welkinClient;
@@ -13,11 +13,15 @@ namespace OutlookWelkinSync
 
         protected OutlookEventRetrieval(OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger)
         {
+            Throw.IfAnyAreNull(outlookClient, welkinClient, logger);
             this.outlookClient = outlookClient;
             this.welkinClient = welkinClient;
             this.logger = logger;
         }
 
-        public abstract IEnumerable<Event> RetrieveAllUpdatedSince(TimeSpan ago);
+        public virtual IEnumerable<Event> RetrieveAllUpdatedSince(TimeSpan ago)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

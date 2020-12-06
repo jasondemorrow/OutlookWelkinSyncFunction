@@ -145,8 +145,9 @@ namespace OutlookWelkinSync
         private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
         {
             string url = $"{config.ApiUrl}{path}";
+            string key = url + "?" + string.Join("&", parameters.Select(e => $"{e.Key}={e.Value}"));
             IEnumerable<T> found;
-            if (internalCache.TryGetValue(url, out found))
+            if (internalCache.TryGetValue(key, out found))
             {
                 return found;
             }
@@ -174,7 +175,7 @@ namespace OutlookWelkinSync
 
             found = JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
 
-            internalCache.Set(url, found, cacheEntryOptions);
+            internalCache.Set(key, found, cacheEntryOptions);
             return found;
         }
 
@@ -232,7 +233,13 @@ namespace OutlookWelkinSync
 
         public WelkinCalendar RetrieveCalendarFor(WelkinWorker worker)
         {
-            var client = new RestClient(config.ApiUrl + "calendars?worker=" + worker.Id);
+            string url = $"{config.ApiUrl}{Constants.CalendarResourceName}?worker={worker.Id}";
+            WelkinCalendar found;
+            if (internalCache.TryGetValue(url, out found))
+            {
+                return found;
+            }
+            var client = new RestClient(url);
             var request = new RestRequest(Method.GET);
             request.AddHeader("authorization", "Bearer " + this.token);
             request.AddHeader("cache-control", "no-cache");
@@ -248,7 +255,9 @@ namespace OutlookWelkinSync
             {
                 return null;
             }
-            return JsonConvert.DeserializeObject<WelkinCalendar>(calendar.ToString());
+            found = JsonConvert.DeserializeObject<WelkinCalendar>(calendar.ToString());
+            internalCache.Set(url, found, cacheEntryOptions);
+            return found;
         }
 
         public WelkinExternalId CreateOrUpdateExternalId(WelkinExternalId external, string id = null)
@@ -304,6 +313,12 @@ namespace OutlookWelkinSync
                 page = JsonConvert.DeserializeObject<List<WelkinWorker>>(data.ToString());
                 workers.AddRange(page);
                 links = result["links"]?.ToObject<JObject>();
+            }
+            // Cache results for individual retrieval
+            foreach (WelkinWorker worker in workers)
+            {
+                string key = $"{config.ApiUrl}{Constants.WorkerResourceName}/{worker.Id}";
+                internalCache.Set(key, worker, cacheEntryOptions);
             }
             return workers;
         }

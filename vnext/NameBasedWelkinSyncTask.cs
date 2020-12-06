@@ -26,7 +26,7 @@ namespace OutlookWelkinSync
                 return syncedTo;
             }
 
-            WelkinExternalId externalId = this.welkinClient.FindExternalMappingFor(welkinEvent);
+            WelkinExternalId externalId = this.welkinClient.FindExternalMappingFor(this.welkinEvent);
             WelkinCalendar calendar = this.welkinClient.RetrieveCalendar(this.welkinEvent.CalendarId);
             WelkinWorker worker = this.welkinClient.RetrieveWorker(calendar.WorkerId);
 

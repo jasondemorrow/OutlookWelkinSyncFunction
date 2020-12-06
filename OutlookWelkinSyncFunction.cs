@@ -6,6 +6,7 @@ namespace OutlookWelkinSyncFunction
     using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
     using Ninject;
+    using Ninject.Parameters;
     using Sync = OutlookWelkinSync;
 
     public static class OutlookWelkinSyncFunction
@@ -17,22 +18,43 @@ namespace OutlookWelkinSyncFunction
             // 2. Create Outlook event retrieval, which may fetch all Welkin workers or a shared calendar
             // 3. Create sync tasks for each Outlook and Welkin event and run them
             log.LogInformation($"Starting Welkin/Outlook events sync at: {DateTime.Now}");
+
             Sync.NinjectModules.CurrentLogger = log;
             IKernel ninject = new StandardKernel(Sync.NinjectModules.CurrentModule);
-            Sync.OutlookClient outlookClient = ninject.Get<Sync.OutlookClient>();
             Sync.WelkinClient welkinClient = ninject.Get<Sync.WelkinClient>();
-            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-24);
-            TimeSpan historySpan = DateTime.UtcNow - lastRun;
+            Sync.OutlookClient outlookClient = ninject.Get<Sync.OutlookClient>();
+            Sync.OutlookEventRetrieval outlookEventRetrieval = ninject.Get<Sync.OutlookEventRetrieval>();
+
+            List<Sync.WelkinSyncTask> welkinSyncTasks = new List<Sync.WelkinSyncTask>();
+            List<Sync.OutlookSyncTask> outlookSyncTasks = new List<Sync.OutlookSyncTask>();
+
+            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-2);
+            TimeSpan historySpan = DateTime.UtcNow - lastRun.AddMinutes(-1);
+
             IEnumerable<Sync.WelkinEvent> welkinEvents = welkinClient.RetrieveEventsUpdatedSince(historySpan);
-            foreach (Sync.WelkinEvent evt in welkinEvents)
+            foreach (Sync.WelkinEvent welkinEvent in welkinEvents)
             {
-                log.LogInformation(evt.ToString());
+                log.LogInformation($"Found a new Welkin event, ID {welkinEvent.Id}.");
+                ConstructorArgument argument = new ConstructorArgument("welkinEvent", welkinEvent);
+                Sync.WelkinSyncTask welkinSyncTask = ninject.Get<Sync.WelkinSyncTask>(argument);
+                welkinSyncTasks.Add(welkinSyncTask);
             }
+
+            IEnumerable<Event> outlookEvents = outlookEventRetrieval.RetrieveAllUpdatedSince(historySpan);
+            foreach (Event outlookEvent in outlookEvents)
+            {
+                log.LogInformation($"Found a new Outlook event, ID {outlookEvent.ICalUId}.");
+                ConstructorArgument argument = new ConstructorArgument("outlookEvent", outlookEvent);
+                Sync.OutlookSyncTask outlookSyncTask = ninject.Get<Sync.OutlookSyncTask>(argument);
+                outlookSyncTasks.Add(outlookSyncTask);
+            }
+
             IEnumerable<Sync.WelkinWorker> welkinWorkers = welkinClient.RetrieveAllWorkers();
             foreach (Sync.WelkinWorker worker in welkinWorkers)
             {
                 log.LogInformation(worker.ToString());
             }
+
             log.LogInformation("Done!");
             /*
             OutlookClient outlookClient = new OutlookClient(new OutlookConfig(), log);

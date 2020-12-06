@@ -6,7 +6,7 @@ namespace OutlookWelkinSync
     using Microsoft.Graph;
     using Ninject;
 
-    public abstract class SharedCalendarOutlookEventRetrieval : OutlookEventRetrieval
+    public class SharedCalendarOutlookEventRetrieval : OutlookEventRetrieval
     {
         private readonly string sharedCalendarUser;
         private readonly string sharedCalendarName;
@@ -21,6 +21,16 @@ namespace OutlookWelkinSync
             this.sharedCalendarName = sharedCalendarName;
         }
 
-        public override IEnumerable<Event> RetrieveAllUpdatedSince(TimeSpan ago) => null;
+        public override IEnumerable<Event> RetrieveAllUpdatedSince(TimeSpan ago)
+        {
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end - ago;
+            return this.outlookClient.RetrieveEventsForUserScheduledBetween(
+                this.sharedCalendarUser, 
+                start, 
+                end, 
+                null, 
+                this.sharedCalendarName);
+        }
     }
 }

@@ -97,6 +97,12 @@ namespace OutlookWelkinSync
             string extensionsNamespace = null, 
             string calendarName = null)
         {
+            Event found;
+            if (this.internalCache.TryGetValue(guid, out found))
+            {
+                return found;
+            }
+
             string filter = $"iCalUId eq '{guid}'";
 
             ICalendarEventsCollectionRequest request = 
@@ -110,11 +116,14 @@ namespace OutlookWelkinSync
                 request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
             }
             
-            return request
+            found = request
                     .GetAsync()
                     .GetAwaiter()
                     .GetResult()
                     .FirstOrDefault();
+
+            this.internalCache.Set(guid, found, this.cacheEntryOptions);
+            return found;
         }
 
         public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTime start, DateTime end, string extensionsNamespace = null, string calendarName = null)
@@ -135,40 +144,35 @@ namespace OutlookWelkinSync
                 request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
             }
 
-            return request
-                    .GetAsync()
-                    .GetAwaiter()
-                    .GetResult();
-        }
+            IEnumerable<Event> events = request
+                                        .GetAsync()
+                                        .GetAwaiter()
+                                        .GetResult();
 
-/*
-        public IEnumerable<Event> RetrieveEventsUpdatedSince(TimeSpan ago, string extensionsNamespace = null, string calendarName = null)
-        {
-            DateTime end = DateTime.UtcNow;
-            DateTime start = end - ago;
-            string filter = $"lastModifiedDateTime lt {end.ToString("o")} and lastModifiedDateTime gt {start.ToString("o")}";
-
-            ICalendarEventsCollectionRequest request = 
-                        this.graphClient.Organization
-                            .Events
-                            .Request()
-                            .Filter(filter);
-
-            if (extensionsNamespace != null)
+            // Cache for later individual retrieval by ICalUId
+            foreach (Event outlookEvent in events)
             {
-                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+                this.internalCache.Set(outlookEvent.ICalUId, outlookEvent, this.cacheEntryOptions);
             }
-            
-            return request
-                    .GetAsync()
-                    .GetAwaiter()
-                    .GetResult();
-        }
-*/
 
-        public User RetrieveUserForWelkinWorker(WelkinWorker worker)
+            return events;
+        }
+
+        public ISet<string> RetrieveAllDomainsInCompany()
         {
-            return null;
+            HashSet<string> domains;
+            string key = "domains";
+
+            if (this.internalCache.TryGetValue(key, out domains))
+            {
+                return domains;
+            }
+
+            var page = this.graphClient.Domains.Request().GetAsync().GetAwaiter().GetResult();
+            domains = page.Select(r => r.Id).ToHashSet();
+
+            this.internalCache.Set(key, domains, this.cacheEntryOptions);
+            return domains;
         }
         
         public Event UpdateEvent(Event outlookEvent, string userName = null, string calendarName = null)
@@ -237,7 +241,7 @@ namespace OutlookWelkinSync
 
             retrieved = this.graphClient.Users[email].Request().GetAsync().GetAwaiter().GetResult();
 
-            internalCache.Set(email, retrieved, cacheEntryOptions);
+            internalCache.Set(email, retrieved, this.cacheEntryOptions);
             return retrieved;
         }
 

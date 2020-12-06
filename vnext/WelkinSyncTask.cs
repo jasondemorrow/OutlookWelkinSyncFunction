@@ -3,7 +3,7 @@ namespace OutlookWelkinSync
     using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
 
-    public abstract class WelkinSyncTask
+    public class WelkinSyncTask
     {
         protected WelkinEvent welkinEvent;
         protected readonly OutlookClient outlookClient;
@@ -22,7 +22,10 @@ namespace OutlookWelkinSync
         /// Perform sync of the given Welkin event to the corresponding Outlook calendar.
         /// </summary>
         /// <returns>The Outlook event created or updated as the result of the sync, or null if no sync need be performed.</returns>
-        public abstract Event Sync();
+        public virtual Event Sync()
+        {
+            throw new System.NotImplementedException();
+        }
 
         /// <summary>
         /// Perform standard pre-sync checks.
