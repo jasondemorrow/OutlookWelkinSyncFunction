@@ -54,5 +54,10 @@ namespace OutlookWelkinSync
 
             return true;
         }
+
+        public override string ToString()
+        {
+            return $"{this.GetType().FullName} for {this.outlookEvent.ICalUId}";
+        }
     }
 }

@@ -47,7 +47,7 @@ namespace OutlookWelkinSync
                     InternalId = this.sourceWelkinEvent.Id,
                     Namespace = Constants.WelkinEventExtensionNamespacePrefix + this.targetOutlookEvent.ICalUId
                 };
-                welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId);
+                welkinExternalId = welkinClient.CreateOrUpdateExternalId(welkinExternalId); // TODO: Catch exception here and roll back
                 string outlookICalId = welkinExternalId?.Namespace?.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
 
                 if (outlookICalId != null && outlookICalId.Equals(this.targetOutlookEvent.ICalUId))

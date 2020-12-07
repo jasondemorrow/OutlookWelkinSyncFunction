@@ -71,7 +71,7 @@ namespace OutlookWelkinSync
         {
             if (userPrincipal == null)
             {
-                userPrincipal = outlookEvent.Calendar.Owner.Address;
+                userPrincipal = outlookEvent.AdditionalData[Constants.WelkinWorkerEmailKey].ToString();
             }
             
             return CalendarRequestBuilderFrom(userPrincipal, calendarName);
@@ -226,9 +226,25 @@ namespace OutlookWelkinSync
             return null;
         }
 
+        public Microsoft.Graph.Calendar RetrieveOwningUserDefaultCalendar(Event childEvent)
+        {
+            if (!childEvent.AdditionalData.ContainsKey(Constants.WelkinWorkerEmailKey))
+            {
+                return null;
+            }
+            
+            return CalendarRequestBuilderFrom(
+                childEvent, 
+                childEvent.AdditionalData[Constants.WelkinWorkerEmailKey].ToString())
+                    .Request()
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult();
+        }
+
         public User RetrieveOwningUser(Event outlookEvent)
         {
-            return RetrieveUser(outlookEvent.Calendar.Owner.Address);
+            return RetrieveUser(outlookEvent.AdditionalData[Constants.WelkinWorkerEmailKey].ToString());
         }
 
         public User RetrieveUser(string email)

@@ -314,21 +314,36 @@ namespace OutlookWelkinSync
                 workers.AddRange(page);
                 links = result["links"]?.ToObject<JObject>();
             }
-            // Cache results for individual retrieval
+            // Cache results for individual retrieval by email or ID
             foreach (WelkinWorker worker in workers)
             {
                 string key = $"{config.ApiUrl}{Constants.WorkerResourceName}/{worker.Id}";
                 internalCache.Set(key, worker, cacheEntryOptions);
+                internalCache.Set(worker.Email.ToLowerInvariant(), worker, cacheEntryOptions);
             }
             return workers;
         }
 
         public WelkinWorker FindWorker(string email)
         {
+            if (string.IsNullOrEmpty(email))
+            {
+                return null;
+            }
+            WelkinWorker worker;
+            if (internalCache.TryGetValue(email.ToLowerInvariant(), out worker))
+            {
+                return worker;
+            }
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             parameters["email"] = email;
             IEnumerable<WelkinWorker> found = SearchObjects<WelkinWorker>(Constants.WorkerResourceName, parameters);
-            return found.FirstOrDefault();
+            worker = found.FirstOrDefault();
+            if (worker != null)
+            {
+                internalCache.Set(worker.Email.ToLowerInvariant(), worker, cacheEntryOptions);
+            }
+            return worker;
         }
 
         public WelkinExternalId FindExternalMappingFor(WelkinEvent internalEvent, Event externalEvent = null)

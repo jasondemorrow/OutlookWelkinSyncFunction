@@ -5,6 +5,7 @@ namespace OutlookWelkinSync
     public static class Constants
     {
         public const string OutlookEventExtensionsNamespace = "sync.outlook.welkinhealth.com";
+        public const string WelkinWorkerEmailKey = "sync.welkin.worker.email";
         public const string WelkinPatientExtensionNamespace = "patient_placeholders_sync_outlook_welkinhealth_com";
         public const string WelkinEventExtensionNamespacePrefix = "sync_outlook_";
         public const string WelkinLastSyncExtensionNamespace = "sync_last_datetime";
