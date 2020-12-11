@@ -71,7 +71,8 @@ namespace OutlookWelkinSync
         {
             if (userPrincipal == null)
             {
-                userPrincipal = outlookEvent.AdditionalData[Constants.WelkinWorkerEmailKey].ToString();
+                User outlookUser = outlookEvent.AdditionalData[Constants.OutlookUserObjectKey] as User;
+                userPrincipal = outlookUser?.UserPrincipalName;
             }
             
             return CalendarRequestBuilderFrom(userPrincipal, calendarName);
@@ -124,6 +125,29 @@ namespace OutlookWelkinSync
 
             this.internalCache.Set(guid, found, this.cacheEntryOptions);
             return found;
+        }
+
+        public IEnumerable<Event> RetrieveEventsForUserUpdatedSince(string userPrincipal, TimeSpan ago, string extensionsNamespace = null, string calendarName = null)
+        {
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end - ago;
+            string filter = $"lastModifiedDateTime lt {end.ToString("o")} and lastModifiedDateTime gt {start.ToString("o")}";
+
+            ICalendarEventsCollectionRequest request = 
+                        CalendarRequestBuilderFrom(userPrincipal, calendarName)
+                            .Events
+                            .Request()
+                            .Filter(filter);
+
+            if (extensionsNamespace != null)
+            {
+                request = request.Expand($"extensions($filter=id eq '{extensionsNamespace}')");
+            }
+            
+            return request
+                    .GetAsync()
+                    .GetAwaiter()
+                    .GetResult();
         }
 
         public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTime start, DateTime end, string extensionsNamespace = null, string calendarName = null)
@@ -264,7 +288,7 @@ namespace OutlookWelkinSync
         public void SetOpenExtensionPropertiesOnEvent(Event outlookEvent, IDictionary<string, object> keyValuePairs, string extensionsNamespace, string calendarName = null)
         {
             IEventExtensionsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(outlookEvent, calendarName)
+                        CalendarRequestBuilderFrom(outlookEvent, null, calendarName)
                             .Events[outlookEvent.Id]
                             .Extensions
                             .Request();

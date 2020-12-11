@@ -52,7 +52,7 @@ namespace OutlookWelkinSync
             if (string.IsNullOrEmpty(linkedWelkinId))
             {
                 Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
-                keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = linkedWelkinId;
+                keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = this.targetWelkinEvent.Id;
                 this.outlookClient.MergeOpenExtensionPropertiesOnEvent(
                     this.sourceOutlookEvent, 
                     keyValuePairs, 

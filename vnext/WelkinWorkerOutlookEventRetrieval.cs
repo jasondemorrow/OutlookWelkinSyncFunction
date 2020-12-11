@@ -27,13 +27,15 @@ namespace OutlookWelkinSync
                 {
                     try
                     {
-                        IEnumerable<Event> workerEvents = this.outlookClient.RetrieveEventsForUserScheduledBetween(email, start, end, Constants.OutlookEventExtensionsNamespace);
+                        User outlookUser = this.outlookClient.RetrieveUser(email);
+                        IEnumerable<Event> workerEvents = this.outlookClient.RetrieveEventsForUserUpdatedSince(email, ago, Constants.OutlookEventExtensionsNamespace);
                         this.logger.LogInformation($"Successfully retrieved events for {email}.");
 
                         // Save the Welkin worker email on each event for later sync
                         foreach (Event workerEvent in workerEvents)
                         {
                             workerEvent.AdditionalData[Constants.WelkinWorkerEmailKey] = worker.Email;
+                            workerEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser;
                         }
 
                         events.AddRange(workerEvents);

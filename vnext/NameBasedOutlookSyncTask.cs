@@ -70,6 +70,8 @@ namespace OutlookWelkinSync
 
                     syncedTo = placeholderEvent;
                 }
+
+                //this.outlookClient. TODO: last sync time
             }
 
             return syncedTo;

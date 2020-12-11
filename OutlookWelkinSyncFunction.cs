@@ -15,7 +15,7 @@ namespace OutlookWelkinSyncFunction
         public static void Run([TimerTrigger("%TimerSchedule%")]TimerInfo timerInfo, ILogger log)
         {
             log.LogInformation($"Starting Welkin/Outlook events sync at: {DateTime.Now}");
-
+            
             Sync.NinjectModules.CurrentLogger = log;
             IKernel ninject = new StandardKernel(Sync.NinjectModules.CurrentModule);
             Sync.WelkinClient welkinClient = ninject.Get<Sync.WelkinClient>();
@@ -73,11 +73,10 @@ namespace OutlookWelkinSyncFunction
                     log.LogError(ex, $"While running {welkinSyncTask.ToString()}");
                 }
             }
-
-            log.LogInformation("Done!");
+            
             /*
-            OutlookClient outlookClient = new OutlookClient(new OutlookConfig(), log);
-            WelkinClient welkinClient = new WelkinClient(new WelkinConfig(), log);
+            OutlookClientOld outlookClient = new OutlookClientOld(new OutlookConfig(), log);
+            WelkinClientOld welkinClient = new WelkinClientOld(new WelkinConfig(), log);
             OutlookEventSync outlookEventSync = new OutlookEventSync(outlookClient, welkinClient, log);
             WelkinEventSync welkinEventSync = new WelkinEventSync(outlookClient, welkinClient, log);
             DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-24);
@@ -232,6 +231,7 @@ namespace OutlookWelkinSyncFunction
                 }
             }
             */
+            log.LogInformation("Done!");
         }
 
         private static string UserNameFrom(string email)
