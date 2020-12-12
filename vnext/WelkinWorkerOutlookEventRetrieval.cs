@@ -22,68 +22,36 @@ namespace OutlookWelkinSync
 
             foreach (WelkinWorker worker in workers)
             {
-                ISet<string> candidateEmails = this.ProducePrincipalCandidates(worker, domains);
-                foreach (string email in candidateEmails)
+                try
                 {
-                    try
+                    User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
+                    if (outlookUser == null)
                     {
-                        User outlookUser = this.outlookClient.RetrieveUser(email);
-                        IEnumerable<Event> workerEvents = this.outlookClient.RetrieveEventsForUserUpdatedSince(email, ago, Constants.OutlookEventExtensionsNamespace);
-                        this.logger.LogInformation($"Successfully retrieved events for {email}.");
-
-                        // Save the Welkin worker email on each event for later sync
-                        foreach (Event workerEvent in workerEvents)
-                        {
-                            workerEvent.AdditionalData[Constants.WelkinWorkerEmailKey] = worker.Email;
-                            workerEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser;
-                        }
-
-                        events.AddRange(workerEvents);
-                        break; // Stop once we find a working candidate
+                        continue;
                     }
-                    catch (ServiceException ex)
+
+                    string userName = outlookUser.UserPrincipalName;
+                    IEnumerable<Event> workerEvents = this.outlookClient.RetrieveEventsForUserUpdatedSince(
+                        userName, ago, Constants.OutlookEventExtensionsNamespace);
+                    this.logger.LogInformation($"Successfully retrieved events for {userName}.");
+
+                    // Save the Welkin worker email and owning user on each event for later sync
+                    foreach (Event workerEvent in workerEvents)
                     {
-                        this.logger.LogInformation($"{email}:{ex.StatusCode}");
+                        workerEvent.AdditionalData[Constants.WelkinWorkerEmailKey] = worker.Email;
+                        workerEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser;
                     }
+
+                    events.AddRange(workerEvents);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogInformation(
+                        $"Exception while trying to retrieve events for {worker.Email}: {ex.Message}");
                 }
             }
 
             return events;
-        }
-
-        private ISet<string> ProducePrincipalCandidates(WelkinWorker worker, ISet<string> domains)
-        {
-            HashSet<string> candidates = new HashSet<string>();
-            int idxIdAt = worker.Id.IndexOf("@");
-            string idAt = (idxIdAt > -1) ? worker.Id.Substring(0, idxIdAt) : null;
-            int idxIdPlus = worker.Id.IndexOf("+");
-            string idPlus = (idxIdPlus > -1) ? worker.Id.Substring(0, idxIdPlus) : null;
-            int idxEmailAt = worker.Email.IndexOf("@");
-            string emailAt = (idxEmailAt > -1) ? worker.Email.Substring(0, idxEmailAt) : null;
-            int idxEmailPlus = worker.Email.IndexOf("+");
-            string emailPlus = (idxEmailPlus > -1) ? worker.Email.Substring(0, idxEmailPlus) : null;
-
-            foreach (string domain in domains)
-            {
-                if (!string.IsNullOrEmpty(idAt))
-                {
-                    candidates.Add($"{idAt}@{domain}");
-                }
-                if (!string.IsNullOrEmpty(idPlus))
-                {
-                    candidates.Add($"{idPlus}@{domain}");
-                }
-                if (!string.IsNullOrEmpty(emailAt))
-                {
-                    candidates.Add($"{emailAt}@{domain}");
-                }
-                if (!string.IsNullOrEmpty(emailPlus))
-                {
-                    candidates.Add($"{emailPlus}@{domain}");
-                }
-            }
-
-            return candidates;
         }
     }
 }

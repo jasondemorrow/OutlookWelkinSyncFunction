@@ -378,7 +378,7 @@ namespace OutlookWelkinSync
                 foundLinks
                     .Where(x => x.Namespace.StartsWith(Constants.WelkinLastSyncExtensionNamespace))
                     .FirstOrDefault();
-            return new WelkinLastSyncEntry(externalId);
+            return (externalId == null)? null : new WelkinLastSyncEntry(externalId);
         }
 
         public bool UpdateLastSyncFor(WelkinEvent internalEvent, string existingId = null, DateTimeOffset? lastSync = null)

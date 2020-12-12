@@ -71,7 +71,7 @@ namespace OutlookWelkinSync
                     syncedTo = placeholderEvent;
                 }
 
-                //this.outlookClient. TODO: last sync time
+                this.outlookClient.SetLastSyncDateTime(this.outlookEvent);
             }
 
             return syncedTo;

@@ -238,18 +238,6 @@ namespace OutlookWelkinSync
             return linkedEventId;
         }
 
-        public static DateTime? GetLastSyncDateTime(Event outlookEvent)
-        {
-            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
-            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookLastSyncDateTimeKey))
-            {
-                string lastSync = extensionForWelkin.AdditionalData[Constants.OutlookLastSyncDateTimeKey].ToString();
-                return string.IsNullOrEmpty(lastSync) ? null : new DateTime?(DateTime.ParseExact(lastSync, "o", CultureInfo.InvariantCulture).ToUniversalTime());
-            }
-
-            return null;
-        }
-
         public Microsoft.Graph.Calendar RetrieveOwningUserDefaultCalendar(Event childEvent)
         {
             if (!childEvent.AdditionalData.ContainsKey(Constants.WelkinWorkerEmailKey))
@@ -285,6 +273,63 @@ namespace OutlookWelkinSync
             return retrieved;
         }
 
+        public User FindUserCorrespondingTo(WelkinWorker welkinWorker)
+        {
+            ISet<string> domains = this.RetrieveAllDomainsInCompany();
+            ISet<string> candidateEmails = ProducePrincipalCandidates(welkinWorker, domains);
+            foreach (string email in candidateEmails)
+            {
+                try
+                {
+                    User outlookUser = this.RetrieveUser(email);
+                    if (outlookUser != null)
+                    {
+                        return outlookUser;
+                    }
+                }
+                catch (ServiceException ex)
+                {
+                    this.logger.LogInformation($"{email}:{ex.StatusCode}");
+                }
+            }
+            return null;
+        }
+
+        private static ISet<string> ProducePrincipalCandidates(WelkinWorker worker, ISet<string> domains)
+        {
+            HashSet<string> candidates = new HashSet<string>();
+            int idxIdAt = worker.Id.IndexOf("@");
+            string idAt = (idxIdAt > -1) ? worker.Id.Substring(0, idxIdAt) : null;
+            int idxIdPlus = worker.Id.IndexOf("+");
+            string idPlus = (idxIdPlus > -1) ? worker.Id.Substring(0, idxIdPlus) : null;
+            int idxEmailAt = worker.Email.IndexOf("@");
+            string emailAt = (idxEmailAt > -1) ? worker.Email.Substring(0, idxEmailAt) : null;
+            int idxEmailPlus = worker.Email.IndexOf("+");
+            string emailPlus = (idxEmailPlus > -1) ? worker.Email.Substring(0, idxEmailPlus) : null;
+
+            foreach (string domain in domains)
+            {
+                if (!string.IsNullOrEmpty(idAt))
+                {
+                    candidates.Add($"{idAt}@{domain}");
+                }
+                if (!string.IsNullOrEmpty(idPlus))
+                {
+                    candidates.Add($"{idPlus}@{domain}");
+                }
+                if (!string.IsNullOrEmpty(emailAt))
+                {
+                    candidates.Add($"{emailAt}@{domain}");
+                }
+                if (!string.IsNullOrEmpty(emailPlus))
+                {
+                    candidates.Add($"{emailPlus}@{domain}");
+                }
+            }
+
+            return candidates;
+        }
+
         public void SetOpenExtensionPropertiesOnEvent(Event outlookEvent, IDictionary<string, object> keyValuePairs, string extensionsNamespace, string calendarName = null)
         {
             IEventExtensionsCollectionRequest request = 
@@ -317,6 +362,43 @@ namespace OutlookWelkinSync
             this.SetOpenExtensionPropertiesOnEvent(outlookEvent, keyValuePairs, extensionsNamespace);
         }
 
+        public bool SetLastSyncDateTime(Event evt, DateTimeOffset? lastSync = null)
+        {
+            if (lastSync == null)
+            {
+                lastSync = DateTimeOffset.UtcNow;
+            }
+
+            IDictionary<string, object> keyValuePairs = new Dictionary<string, object>
+            {
+                {Constants.OutlookLastSyncDateTimeKey , lastSync.Value.ToString("o", CultureInfo.InvariantCulture)}
+            };
+
+            try
+            {
+                this.MergeOpenExtensionPropertiesOnEvent(evt, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
+            }
+            catch (Exception e)
+            {
+                this.logger.LogError(string.Format("While setting sync date-time for event {0}", evt.ICalUId), e);
+                return false;
+            }
+
+            return true;
+        }
+
+        public static DateTime? GetLastSyncDateTime(Event outlookEvent)
+        {
+            Extension extensionForWelkin = outlookEvent?.Extensions?.Where(e => e.Id.EndsWith(Constants.OutlookEventExtensionsNamespace))?.FirstOrDefault();
+            if (extensionForWelkin?.AdditionalData != null && extensionForWelkin.AdditionalData.ContainsKey(Constants.OutlookLastSyncDateTimeKey))
+            {
+                string lastSync = extensionForWelkin.AdditionalData[Constants.OutlookLastSyncDateTimeKey].ToString();
+                return string.IsNullOrEmpty(lastSync) ? null : new DateTime?(DateTime.ParseExact(lastSync, "o", CultureInfo.InvariantCulture).ToUniversalTime());
+            }
+
+            return null;
+        }
+
         public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, string calendarName = null)
         {
             // TODO: Include patient info
@@ -346,12 +428,21 @@ namespace OutlookWelkinSync
                 }
             };
 
-            Event createdEvent = CalendarRequestBuilderFrom(welkinUser.Email, calendarName)
+            User outlookUser = this.FindUserCorrespondingTo(welkinUser);
+            if (outlookUser == null)
+            {
+                this.logger.LogWarning($"Couldn't find Outlook user corresponding to Welkin user {welkinUser.Email}. " +
+                                        "Can't create an Outlook event from Welkin event {welkinEvent.Id}.");
+                return null;
+            }
+
+            Event createdEvent = CalendarRequestBuilderFrom(outlookUser.UserPrincipalName, calendarName)
                                         .Events
                                         .Request()
                                         .AddAsync(outlookEvent)
                                         .GetAwaiter()
                                         .GetResult();
+            createdEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser;
 
             Dictionary<string, object> keyValuePairs = new Dictionary<string, object>();
             keyValuePairs[Constants.OutlookLinkedWelkinEventIdKey] = welkinEvent.Id;

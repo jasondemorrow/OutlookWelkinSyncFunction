@@ -57,7 +57,7 @@ namespace OutlookWelkinSyncFunction
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex, $"While running {outlookSyncTask.ToString()}");
+                    log.LogError($"Exception while running {outlookSyncTask.ToString()}: {ex.Message} {ex.StackTrace}");
                 }
             }
 
@@ -70,7 +70,7 @@ namespace OutlookWelkinSyncFunction
                 }
                 catch (Exception ex)
                 {
-                    log.LogError(ex, $"While running {welkinSyncTask.ToString()}");
+                    log.LogError($"Exception while running {welkinSyncTask.ToString()}: {ex.Message} {ex.StackTrace}");
                 }
             }
             

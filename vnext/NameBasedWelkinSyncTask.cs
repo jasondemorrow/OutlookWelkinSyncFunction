@@ -34,9 +34,11 @@ namespace OutlookWelkinSync
             if (externalId != null && !string.IsNullOrEmpty(externalId.Namespace))
             {
                 string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
-                this.logger.LogInformation($"Found Outklook event {outlookICalId} associated with Welkin event {welkinEvent.Id}.");
-                // With name-based sync, we require that Welkin user principals are the same as Outlook
-                syncedTo = this.outlookClient.RetrieveEventWithICalId(worker.Email, outlookICalId);
+                this.logger.LogInformation($"Found Outlook event {outlookICalId} associated with Welkin event {welkinEvent.Id}.");
+                User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
+                syncedTo = this.outlookClient.RetrieveEventWithICalId(outlookUser.UserPrincipalName, outlookICalId);
+                syncedTo.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser; // TODO: put this part in the client
+                // TODO: Sync can mess up start/end time
                 if (this.welkinEvent.SyncWith(syncedTo)) // Welkin needs to be updated
                 {
                     this.welkinEvent = this.welkinClient.CreateOrUpdateEvent(this.welkinEvent, this.welkinEvent.Id);
