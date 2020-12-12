@@ -38,7 +38,7 @@ namespace OutlookWelkinSyncFunction
                 welkinSyncTasks.Add(welkinSyncTask);
             }
 
-            // 2. Create Outlook event retrieval, which checks all Welkin workers' Outlook calendars or a shared calendar
+            // 2. Run Outlook event retrieval, which checks all Welkin workers' Outlook calendars or a shared calendar
             IEnumerable<Event> outlookEvents = outlookEventRetrieval.RetrieveAllUpdatedSince(historySpan);
             foreach (Event outlookEvent in outlookEvents)
             {

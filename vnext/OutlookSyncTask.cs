@@ -39,7 +39,7 @@ namespace OutlookWelkinSync
             // If this is a placeholder event created during Welkin sync, we don't sync it.
             if (OutlookClient.IsPlaceHolderEvent(outlookEvent))
             {
-                this.logger.LogInformation("This is a placeholder event created for a Welkin event. Skipping...");
+                this.logger.LogInformation($"Outlook event {this.outlookEvent.ICalUId} is a placeholder event created for a Welkin event. Skipping...");
                 return false;
             }
 
@@ -48,7 +48,7 @@ namespace OutlookWelkinSync
                 outlookEvent.LastModifiedDateTime != null && 
                 lastSync.Value >= outlookEvent.LastModifiedDateTime.Value.UtcDateTime)
             {
-                this.logger.LogInformation("This event hasn't been updated since its last sync. Skipping...");
+                this.logger.LogInformation($"Outlook event {this.outlookEvent.ICalUId} hasn't been updated since its last sync. Skipping...");
                 return false;
             }
 

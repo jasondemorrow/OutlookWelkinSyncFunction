@@ -18,17 +18,15 @@ namespace OutlookWelkinSync
 
         public override Event Sync()
         {
-            Event syncedTo = null;
-
             if (!this.ShouldSync())
             {
-                this.logger.LogInformation($"Not going to sync Welkin event {this.welkinEvent}.");
-                return syncedTo;
+                return null;
             }
 
             WelkinExternalId externalId = this.welkinClient.FindExternalMappingFor(this.welkinEvent);
             WelkinCalendar calendar = this.welkinClient.RetrieveCalendar(this.welkinEvent.CalendarId);
             WelkinWorker worker = this.welkinClient.RetrieveWorker(calendar.WorkerId);
+            Event syncedTo = null;
 
             // If there's already an Outlook event linked to this Welkin event
             if (externalId != null && !string.IsNullOrEmpty(externalId.Namespace))
@@ -65,6 +63,7 @@ namespace OutlookWelkinSync
                 }
             }
 
+            this.welkinClient.UpdateLastSyncFor(this.welkinEvent, externalId?.Id);
             return syncedTo;
         }
     }

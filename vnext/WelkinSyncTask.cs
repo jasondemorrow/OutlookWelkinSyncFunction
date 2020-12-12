@@ -37,15 +37,15 @@ namespace OutlookWelkinSync
 
             if (this.welkinClient.IsPlaceHolderEvent(this.welkinEvent))
             {
-                this.logger.LogInformation("This is a placeholder event created in Welkin for an Outlook event. Skipping...");
+                this.logger.LogInformation($"Welkin event {this.welkinEvent.Id} is a placeholder event created in Welkin for an Outlook event. Skipping...");
                 return false;
             }
 
             WelkinLastSyncEntry lastSync = welkinClient.RetrieveLastSyncFor(welkinEvent);
-            if (lastSync != null && lastSync.IsValid() && welkinEvent.Updated != null && 
-                lastSync.Time >= welkinEvent.Updated.Value.ToUniversalTime())
+            if (lastSync != null && lastSync.IsValid() && this.welkinEvent.Updated != null && 
+                lastSync.Time >= this.welkinEvent.Updated.Value.ToUniversalTime())
             {
-                this.logger.LogInformation("This event hasn't been updated since its last sync. Skipping...");
+                this.logger.LogInformation($"Welkin event {this.welkinEvent.Id} hasn't been updated since its last sync. Skipping...");
                 return false;
             }
 

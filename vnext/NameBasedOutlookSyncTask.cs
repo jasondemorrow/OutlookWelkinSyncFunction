@@ -18,13 +18,13 @@ namespace OutlookWelkinSync
 
         public override WelkinEvent Sync()
         {
-            WelkinEvent syncedTo = null;
             if (!this.ShouldSync())
             {
-                return syncedTo;
+                return null;
             }
 
             string linkedWelkinEventId = this.outlookClient.LinkedWelkinEventIdFrom(this.outlookEvent);
+            WelkinEvent syncedTo = null;
             if (!string.IsNullOrEmpty(linkedWelkinEventId))
             {
                 syncedTo = this.welkinClient.RetrieveEvent(linkedWelkinEventId);
@@ -70,10 +70,9 @@ namespace OutlookWelkinSync
 
                     syncedTo = placeholderEvent;
                 }
-
-                this.outlookClient.SetLastSyncDateTime(this.outlookEvent);
             }
 
+            this.outlookClient.SetLastSyncDateTime(this.outlookEvent);
             return syncedTo;
         }
     }
