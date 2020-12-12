@@ -13,12 +13,14 @@ namespace OutlookWelkinSync
         public const string OutlookLinkedWelkinEventIdKey = "LinkedWelkinEventId";
         public const string OutlookPlaceHolderEventKey = "IsOutlookPlaceHolderEvent";
         public const string OutlookLastSyncDateTimeKey = "LastSyncDateTime";
+        public const string OutlookUtcTimezoneLabel = "UTC";
         public const string DefaultModality = "call";
         public const string DefaultAppointmentType = "intake_call";
         public const string WelkinCancelledOutcome = "cancelled";
         public const string CalendarEventResourceName = "calendar_events";
         public const string CalendarResourceName = "calendars";
         public const string ExternalIdResourceName = "external_ids";
+        public const string PatientResourceName = "patients";
         public const string WorkerResourceName = "workers";
         public const string SyncNamespaceDateSeparator = ":::";
         public const string DummyPatientEnvVarName = "WelkinDummyPatientId";

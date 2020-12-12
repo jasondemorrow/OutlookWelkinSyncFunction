@@ -399,17 +399,17 @@ namespace OutlookWelkinSync
             return null;
         }
 
-        public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, string calendarName = null)
+        public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, WelkinPatient welkinPatient, string calendarName = null)
         {
             // TODO: Include patient info
             // Create and associate a new Outlook event
             Event outlookEvent = new Event
             {
-                Subject = "Placeholder for appointment in Welkin",
+                Subject = $"Welkin Appointment: {welkinEvent.Modality} with {welkinPatient.FirstName} {welkinPatient.LastName} for {welkinUser.FirstName} {welkinUser.LastName}",
                 Body = new ItemBody
                 {
                     ContentType = BodyType.Html,
-                    Content = $"See your Welkin calendar (user {welkinUser.Email}) for details."
+                    Content = $"Event synchronized from Welkin. See Welkin calendar (user {welkinUser.Email}) for details."
                 },
                 IsAllDay = welkinEvent.IsAllDay,
                 Start = new DateTimeTimeZone

@@ -36,7 +36,6 @@ namespace OutlookWelkinSync
                 User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
                 syncedTo = this.outlookClient.RetrieveEventWithICalId(outlookUser.UserPrincipalName, outlookICalId);
                 syncedTo.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser; // TODO: put this part in the client
-                // TODO: Sync can mess up start/end time
                 if (this.welkinEvent.SyncWith(syncedTo)) // Welkin needs to be updated
                 {
                     this.welkinEvent = this.welkinClient.CreateOrUpdateEvent(this.welkinEvent, this.welkinEvent.Id);
@@ -48,8 +47,9 @@ namespace OutlookWelkinSync
             }
             else // An Outlook event needs to be created and linked
             {
+                WelkinPatient patient = this.welkinClient.RetrievePatient(this.welkinEvent.PatientId);
                 // This will also create and persist the Outlook->Welkin link
-                syncedTo = this.outlookClient.CreateOutlookEventFromWelkinEvent(this.welkinEvent, worker);
+                syncedTo = this.outlookClient.CreateOutlookEventFromWelkinEvent(this.welkinEvent, worker, patient);
                 WelkinToOutlookLink welkinToOutlookLink = new WelkinToOutlookLink(
                     this.outlookClient, this.welkinClient, this.welkinEvent, syncedTo, this.logger);
 

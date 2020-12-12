@@ -17,14 +17,16 @@ namespace OutlookWelkinSync
                 outlookEvent.IsAllDay = this.IsAllDay;
                 if (this.IsAllDay)
                 {
-                    outlookEvent.Start.DateTime = this.Day.Value.DateTime.ToString("o");
-                    outlookEvent.End.DateTime = this.Day.Value.AddDays(1).DateTime.ToString("o");
+                    outlookEvent.Start.DateTime = this.Day.Value.ToUniversalTime().DateTime.ToString("o");
+                    outlookEvent.End.DateTime = this.Day.Value.ToUniversalTime().AddDays(1).DateTime.ToString("o");
                 }
                 else 
                 {
-                    outlookEvent.Start.DateTime = this.Start.Value.DateTime.ToString("o");
-                    outlookEvent.End.DateTime = this.End.Value.DateTime.ToString("o");
+                    outlookEvent.Start.DateTime = this.Start.Value.ToUniversalTime().DateTime.ToString("o");
+                    outlookEvent.End.DateTime = this.End.Value.ToUniversalTime().DateTime.ToString("o");
                 }
+                outlookEvent.Start.TimeZone = Constants.OutlookUtcTimezoneLabel;
+                outlookEvent.End.TimeZone = Constants.OutlookUtcTimezoneLabel;
             }
             else
             {

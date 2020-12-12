@@ -23,7 +23,7 @@ namespace OutlookWelkinSync
         });
         private readonly MemoryCacheEntryOptions cacheEntryOptions = 
             new MemoryCacheEntryOptions()
-                .SetAbsoluteExpiration(TimeSpan.FromSeconds(60))
+                .SetAbsoluteExpiration(TimeSpan.FromSeconds(180))
                 .SetSize(1);
         private readonly WelkinConfig config;
         private readonly ILogger logger;
@@ -268,6 +268,11 @@ namespace OutlookWelkinSync
         public void DeleteExternalId(WelkinExternalId externalId)
         {
             this.DeleteObject(externalId.Id, Constants.ExternalIdResourceName);
+        }
+
+        public WelkinPatient RetrievePatient(string patientId)
+        {
+            return this.RetrieveObject<WelkinPatient>(patientId, Constants.PatientResourceName);
         }
 
         public WelkinWorker RetrieveWorker(string workerId)
