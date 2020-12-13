@@ -162,12 +162,14 @@ namespace OutlookWelkinSync
                 request.AddParameter(kvp.Key, kvp.Value);
             }
             var response = client.Execute(request);
+            //this.logger.LogInformation($"GET {key} yields {response.Content}");
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
+            //this.logger.LogInformation($"GET {key} yields {response.Content}");
             if (!result.ContainsKey("data"))
             {
                 return null;
@@ -175,14 +177,10 @@ namespace OutlookWelkinSync
             IEnumerable<T> page = JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
             retrieved.AddRange(page);
             JObject links = result["links"]?.ToObject<JObject>();
-            while (links != null && links.ContainsKey("href"))
+            string nextUrl = this.GetNextResultsUrl(links);
+            while (nextUrl != null)
             {
-                Links href = links["href"].ToObject<Links>();
-                if (string.IsNullOrEmpty(href.Next))
-                {
-                    break;
-                }
-                client = new RestClient(href.Next);
+                client = new RestClient(nextUrl);
                 request = new RestRequest(Method.GET);
                 request.AddHeader("authorization", "Bearer " + this.token);
                 request.AddHeader("cache-control", "no-cache");
@@ -196,6 +194,7 @@ namespace OutlookWelkinSync
                 page = JsonConvert.DeserializeObject<List<T>>(data.ToString());
                 retrieved.AddRange(page);
                 links = result["links"]?.ToObject<JObject>();
+                nextUrl = this.GetNextResultsUrl(links);
             }
             internalCache.Set(key, retrieved, cacheEntryOptions);
             return retrieved;
@@ -319,14 +318,10 @@ namespace OutlookWelkinSync
             IEnumerable<WelkinWorker> page = JsonConvert.DeserializeObject<List<WelkinWorker>>(data.ToString());
             workers.AddRange(page);
             JObject links = result["links"]?.ToObject<JObject>();
-            while (links != null && links.ContainsKey("href"))
+            string nextUrl = this.GetNextResultsUrl(links);
+            while (nextUrl != null)
             {
-                Links href = links["href"].ToObject<Links>();
-                if (string.IsNullOrEmpty(href.Next))
-                {
-                    break;
-                }
-                client = new RestClient(href.Next);
+                client = new RestClient(nextUrl);
                 request = new RestRequest(Method.GET);
                 request.AddHeader("authorization", "Bearer " + this.token);
                 request.AddHeader("cache-control", "no-cache");
@@ -340,6 +335,7 @@ namespace OutlookWelkinSync
                 page = JsonConvert.DeserializeObject<List<WelkinWorker>>(data.ToString());
                 workers.AddRange(page);
                 links = result["links"]?.ToObject<JObject>();
+                nextUrl = this.GetNextResultsUrl(links);
             }
             // Cache results for individual retrieval by email or ID
             foreach (WelkinWorker worker in workers)
@@ -349,6 +345,32 @@ namespace OutlookWelkinSync
                 internalCache.Set(worker.Email.ToLowerInvariant(), worker, cacheEntryOptions);
             }
             return workers;
+        }
+
+        private string GetNextResultsUrl(JObject links)
+        {
+            if (links != null)
+            {
+                if (links.ContainsKey("href"))
+                {
+                    JObject href = links["href"].ToObject<JObject>();
+                    if (href.ContainsKey("next"))
+                    {
+                        //this.logger.LogInformation($"Got next link from href {href.ToString()}");
+                        return href["next"].ToString();
+                    }
+                }
+                if (links.ContainsKey("next"))
+                {
+                    JObject next = links["next"].ToObject<JObject>();
+                    if (next.ContainsKey("href"))
+                    {
+                        //this.logger.LogInformation($"Got href link from next {next.ToString()}");
+                        return next["href"].ToString();
+                    }
+                }
+            }
+            return null;
         }
 
         public WelkinWorker FindWorker(string email)

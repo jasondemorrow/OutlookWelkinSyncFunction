@@ -23,7 +23,6 @@ namespace OutlookWelkinSync
                 return null;
             }
 
-            // TODO: This sometimes fails to find results when it should. Need to log this request in more detail.
             WelkinExternalId externalId = this.welkinClient.FindExternalMappingFor(this.welkinEvent);
             WelkinCalendar calendar = this.welkinClient.RetrieveCalendar(this.welkinEvent.CalendarId);
             WelkinWorker worker = this.welkinClient.RetrieveWorker(calendar.WorkerId);
@@ -64,7 +63,8 @@ namespace OutlookWelkinSync
                 }
             }
 
-            this.welkinClient.UpdateLastSyncFor(this.welkinEvent, externalId?.Id);
+            WelkinLastSyncEntry lastSync = welkinClient.RetrieveLastSyncFor(this.welkinEvent);
+            this.welkinClient.UpdateLastSyncFor(this.welkinEvent, lastSync?.ExternalId?.Id);
             return syncedTo;
         }
     }
