@@ -144,6 +144,7 @@ namespace OutlookWelkinSync
 
         private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
         {
+            // TODO: Consolidate pagination logic with RetrieveAllWorkers
             string url = $"{config.ApiUrl}{path}";
             string key = url + "?" + string.Join("&", parameters.Select(e => $"{e.Key}={e.Value}"));
             IEnumerable<T> found;
@@ -151,32 +152,53 @@ namespace OutlookWelkinSync
             {
                 return found;
             }
-
+            var retrieved = new List<T>();
             var client = new RestClient(url);
-
             var request = new RestRequest(Method.GET);
             request.AddHeader("authorization", "Bearer " + this.token);
             request.AddHeader("cache-control", "no-cache");
-
             foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
                 request.AddParameter(kvp.Key, kvp.Value);
             }
-
-            // Intentionally not caching this result for now. Searches will generally only be done once per run.
             var response = client.Execute(request);
             if (response.StatusCode != System.Net.HttpStatusCode.OK)
             {
                 throw new Exception($"HTTP status {response.StatusCode} with message '{response.ErrorMessage}' and body '{response.Content}'");
             }
-
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-
-            found = JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
-
-            internalCache.Set(key, found, cacheEntryOptions);
-            return found;
+            if (!result.ContainsKey("data"))
+            {
+                return null;
+            }
+            IEnumerable<T> page = JsonConvert.DeserializeObject<IEnumerable<T>>(data.ToString());
+            retrieved.AddRange(page);
+            JObject links = result["links"]?.ToObject<JObject>();
+            while (links != null && links.ContainsKey("href"))
+            {
+                Links href = links["href"].ToObject<Links>();
+                if (string.IsNullOrEmpty(href.Next))
+                {
+                    break;
+                }
+                client = new RestClient(href.Next);
+                request = new RestRequest(Method.GET);
+                request.AddHeader("authorization", "Bearer " + this.token);
+                request.AddHeader("cache-control", "no-cache");
+                response = client.Execute(request);
+                result = JsonConvert.DeserializeObject(response.Content) as JObject;
+                if (result == null || !result.ContainsKey("data"))
+                {
+                    break;
+                }
+                data = result["data"].ToObject<JArray>();
+                page = JsonConvert.DeserializeObject<List<T>>(data.ToString());
+                retrieved.AddRange(page);
+                links = result["links"]?.ToObject<JObject>();
+            }
+            internalCache.Set(key, retrieved, cacheEntryOptions);
+            return retrieved;
         }
 
         public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, string id = null)
