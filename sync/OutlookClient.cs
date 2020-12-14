@@ -289,7 +289,7 @@ namespace OutlookWelkinSync
                 }
                 catch (ServiceException ex)
                 {
-                    this.logger.LogInformation($"{email}:{ex.StatusCode}");
+                    //this.logger.LogInformation($"{email}:{ex.StatusCode}");
                 }
             }
             return null;

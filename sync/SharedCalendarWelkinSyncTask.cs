@@ -1,5 +1,6 @@
 namespace OutlookWelkinSync
 {
+    using System;
     using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
     using Ninject;
@@ -14,6 +15,7 @@ namespace OutlookWelkinSync
     {
         private readonly string sharedCalendarUser;
         private readonly string sharedCalendarName;
+        private readonly User sharedCalendarOutlookUser;
 
         public SharedCalendarWelkinSyncTask(
             WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger,
@@ -23,11 +25,84 @@ namespace OutlookWelkinSync
         {
             this.sharedCalendarUser = sharedCalendarUser;
             this.sharedCalendarName = sharedCalendarName;
+            this.sharedCalendarOutlookUser = this.outlookClient.RetrieveUser(this.sharedCalendarUser);
         }
 
         public override Event Sync()
         {
-            throw new System.NotImplementedException();
+            // 1. Look for an external link to an outlook event
+            // 2. If one exists, look for it in the shared calendar
+            // 3. If it can be retrieved from the shared calendar, sync it
+            // 4. If linked event isn't in shared calendar or no link exists, 
+            //    make a new event in the shared calendar and sync it
+            // 5. Create or update the external link
+            if (!this.ShouldSync())
+            {
+                return null;
+            }
+
+            Event linkedOutlookEvent = null; // From the configured shared calendar
+            WelkinExternalId externalId = this.welkinClient.FindExternalMappingFor(this.welkinEvent);
+            WelkinCalendar calendar = this.welkinClient.RetrieveCalendar(this.welkinEvent.CalendarId);
+            WelkinWorker worker = this.welkinClient.RetrieveWorker(calendar.WorkerId);
+
+            if (externalId != null)
+            {
+                string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
+                try
+                {
+                    linkedOutlookEvent = this.outlookClient.RetrieveEventWithICalId(
+                        this.sharedCalendarUser, 
+                        outlookICalId, 
+                        Constants.OutlookEventExtensionsNamespace, 
+                        this.sharedCalendarName);
+                    if (linkedOutlookEvent != null)
+                    {
+                        linkedOutlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = 
+                            this.sharedCalendarOutlookUser; // TODO: put this part in the client
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogInformation(
+                        $"Welkin event {this.welkinEvent.Id} has a linked Outlook event, but it's outside of the" +
+                         "configured shared calendar. Creating a new event in the shared calendar.");
+                }
+            }
+
+            if (linkedOutlookEvent != null)
+            {
+                if (this.welkinEvent.SyncWith(linkedOutlookEvent)) // Welkin needs to be updated
+                {
+                    this.welkinEvent = this.welkinClient.CreateOrUpdateEvent(this.welkinEvent, this.welkinEvent.Id);
+                }
+                else // Outlook needs to be updated
+                {
+                    this.outlookClient.UpdateEvent(linkedOutlookEvent);
+                }
+            }
+            else // An Outlook event needs to be created and linked
+            {
+                WelkinPatient patient = this.welkinClient.RetrievePatient(this.welkinEvent.PatientId);
+                // This will also create and persist the Outlook->Welkin link
+                linkedOutlookEvent = this.outlookClient.CreateOutlookEventFromWelkinEvent(
+                    this.welkinEvent, worker, patient);
+                WelkinToOutlookLink welkinToOutlookLink = new WelkinToOutlookLink(
+                    this.outlookClient, this.welkinClient, this.welkinEvent, linkedOutlookEvent, this.logger);
+
+                if (!welkinToOutlookLink.CreateIfMissing())
+                {
+                    // Failed for some reason, need to roll back
+                    this.outlookClient.DeleteEvent(linkedOutlookEvent);
+                    throw new LinkException(
+                        $"Failed to create link from Welkin event {this.welkinEvent.Id} " +
+                        $"to Outlook event {linkedOutlookEvent.ICalUId}.");
+                }
+            }
+
+            WelkinLastSyncEntry lastSync = welkinClient.RetrieveLastSyncFor(this.welkinEvent);
+            this.welkinClient.UpdateLastSyncFor(this.welkinEvent, lastSync?.ExternalId?.Id);
+            return linkedOutlookEvent;
         }
     }
 }

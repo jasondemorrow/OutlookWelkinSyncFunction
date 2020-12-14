@@ -25,12 +25,13 @@ namespace OutlookWelkinSync
         {
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
-            return this.outlookClient.RetrieveEventsForUserScheduledBetween(
+            /*return this.outlookClient.RetrieveEventsForUserScheduledBetween(
                 this.sharedCalendarUser, 
                 start, 
                 end, 
                 null, 
-                this.sharedCalendarName);
+                this.sharedCalendarName);*/
+            return new List<Event>(); // Outlook event sync from shared calendar not yet supported
         }
     }
 }
