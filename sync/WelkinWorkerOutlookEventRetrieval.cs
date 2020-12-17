@@ -17,6 +17,7 @@ namespace OutlookWelkinSync
             List<Event> events = new List<Event>();
             IEnumerable<WelkinWorker> workers = this.welkinClient.RetrieveAllWorkers();
             ISet<string> domains = this.outlookClient.RetrieveAllDomainsInCompany();
+            ISet<string> successfulOutlookUsers = new HashSet<string>();
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
 
@@ -25,7 +26,7 @@ namespace OutlookWelkinSync
                 try
                 {
                     User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
-                    if (outlookUser == null)
+                    if (outlookUser == null || successfulOutlookUsers.Contains(outlookUser.UserPrincipalName))
                     {
                         continue;
                     }
@@ -33,6 +34,7 @@ namespace OutlookWelkinSync
                     string userName = outlookUser.UserPrincipalName;
                     IEnumerable<Event> workerEvents = this.outlookClient.RetrieveEventsForUserUpdatedSince(
                         userName, ago, Constants.OutlookEventExtensionsNamespace);
+                    successfulOutlookUsers.Add(userName);
                     this.logger.LogInformation($"Successfully retrieved events for {userName}.");
 
                     // Save the Welkin worker email and owning user on each event for later sync

@@ -50,6 +50,14 @@ namespace OutlookWelkinSync
                 WelkinPatient patient = this.welkinClient.RetrievePatient(this.welkinEvent.PatientId);
                 // This will also create and persist the Outlook->Welkin link
                 syncedTo = this.outlookClient.CreateOutlookEventFromWelkinEvent(this.welkinEvent, worker, patient);
+
+                if (syncedTo == null)
+                {
+                    throw new SyncException(
+                        $"Failed to create Outlook event for Welkin event {this.welkinEvent.Id}, probably because a " +
+                        $"corresponding Outlook user wasn't found for Welkin worker {worker.Email}");
+                }
+                
                 WelkinToOutlookLink welkinToOutlookLink = new WelkinToOutlookLink(
                     this.outlookClient, this.welkinClient, this.welkinEvent, syncedTo, this.logger);
 
