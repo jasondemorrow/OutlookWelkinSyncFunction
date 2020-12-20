@@ -67,7 +67,7 @@ namespace OutlookWelkinSync
             return false;
         }
 
-        private ICalendarRequestBuilder CalendarRequestBuilderFrom(Event outlookEvent, string userPrincipal, string calendarName = null)
+        private ICalendarRequestBuilder CalendarRequestBuilderFrom(Event outlookEvent, string userPrincipal, string calendarId = null)
         {
             if (userPrincipal == null)
             {
@@ -75,16 +75,16 @@ namespace OutlookWelkinSync
                 userPrincipal = outlookUser?.UserPrincipalName;
             }
             
-            return CalendarRequestBuilderFrom(userPrincipal, calendarName);
+            return CalendarRequestBuilderFrom(userPrincipal, calendarId);
         }
 
-        private ICalendarRequestBuilder CalendarRequestBuilderFrom(string userPrincipal, string calendarName = null)
+        private ICalendarRequestBuilder CalendarRequestBuilderFrom(string userPrincipal, string calendarId = null)
         {
             IUserRequestBuilder userBuilder = this.graphClient.Users[userPrincipal];
             
-            if (calendarName != null)
+            if (calendarId != null)
             {
-                return userBuilder.Calendars[calendarName];
+                return userBuilder.Calendars[calendarId];
             }
             else
             {
@@ -96,7 +96,7 @@ namespace OutlookWelkinSync
             string userPrincipal, 
             string guid, 
             string extensionsNamespace = null, 
-            string calendarName = null)
+            string calendarId = null)
         {
             Event found;
             if (this.internalCache.TryGetValue(guid, out found))
@@ -107,7 +107,7 @@ namespace OutlookWelkinSync
             string filter = $"iCalUId eq '{guid}'";
 
             ICalendarEventsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(userPrincipal, calendarName)
+                        CalendarRequestBuilderFrom(userPrincipal, calendarId)
                             .Events
                             .Request()
                             .Filter(filter);
@@ -127,14 +127,14 @@ namespace OutlookWelkinSync
             return found;
         }
 
-        public IEnumerable<Event> RetrieveEventsForUserUpdatedSince(string userPrincipal, TimeSpan ago, string extensionsNamespace = null, string calendarName = null)
+        public IEnumerable<Event> RetrieveEventsForUserUpdatedSince(string userPrincipal, TimeSpan ago, string extensionsNamespace = null, string calendarId = null)
         {
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
             string filter = $"lastModifiedDateTime lt {end.ToString("o")} and lastModifiedDateTime gt {start.ToString("o")}";
 
             ICalendarEventsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(userPrincipal, calendarName)
+                        CalendarRequestBuilderFrom(userPrincipal, calendarId)
                             .Events
                             .Request()
                             .Filter(filter);
@@ -150,7 +150,7 @@ namespace OutlookWelkinSync
                     .GetResult();
         }
 
-        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTime start, DateTime end, string extensionsNamespace = null, string calendarName = null)
+        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTime start, DateTime end, string extensionsNamespace = null, string calendarId = null)
         {
             var queryOptions = new List<QueryOption>()
             {
@@ -159,7 +159,7 @@ namespace OutlookWelkinSync
             };
 
             ICalendarEventsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(userPrincipal, calendarName)
+                        CalendarRequestBuilderFrom(userPrincipal, calendarId)
                             .Events
                             .Request(queryOptions);
 
@@ -199,9 +199,9 @@ namespace OutlookWelkinSync
             return domains;
         }
         
-        public Event UpdateEvent(Event outlookEvent, string userName = null, string calendarName = null)
+        public Event UpdateEvent(Event outlookEvent, string userName = null, string calendarId = null)
         {
-            return CalendarRequestBuilderFrom(outlookEvent, userName, calendarName)
+            return CalendarRequestBuilderFrom(outlookEvent, userName, calendarId)
                 .Events[outlookEvent.Id]
                 .Request()
                 .UpdateAsync(outlookEvent)
@@ -209,9 +209,9 @@ namespace OutlookWelkinSync
                 .GetResult();
         }
 
-        public void DeleteEvent(Event outlookEvent, string userName = null, string calendarName = null)
+        public void DeleteEvent(Event outlookEvent, string userName = null, string calendarId = null)
         {
-            CalendarRequestBuilderFrom(outlookEvent, userName, calendarName)
+            CalendarRequestBuilderFrom(outlookEvent, userName, calendarId)
                 .Events[outlookEvent.Id]
                 .Request()
                 .DeleteAsync()
@@ -330,10 +330,10 @@ namespace OutlookWelkinSync
             return candidates;
         }
 
-        public void SetOpenExtensionPropertiesOnEvent(Event outlookEvent, IDictionary<string, object> keyValuePairs, string extensionsNamespace, string calendarName = null)
+        public void SetOpenExtensionPropertiesOnEvent(Event outlookEvent, IDictionary<string, object> keyValuePairs, string extensionsNamespace, string calendarId = null)
         {
             IEventExtensionsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(outlookEvent, null, calendarName)
+                        CalendarRequestBuilderFrom(outlookEvent, null, calendarId)
                             .Events[outlookEvent.Id]
                             .Extensions
                             .Request();
@@ -399,9 +399,20 @@ namespace OutlookWelkinSync
             return null;
         }
 
-        public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, WelkinPatient welkinPatient, string calendarName = null)
+        public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, WelkinPatient welkinPatient, string calendarId = null)
         {
-            // TODO: Include patient info
+            User outlookUser = this.FindUserCorrespondingTo(welkinUser);
+            if (outlookUser == null)
+            {
+                this.logger.LogWarning($"Couldn't find Outlook user corresponding to Welkin user {welkinUser.Email}. " +
+                                       $"Can't create an Outlook event from Welkin event {welkinEvent.Id}.");
+                return null;
+            }
+            return this.CreateOutlookEventFromWelkinEvent(welkinEvent, welkinUser, outlookUser, welkinPatient, calendarId);
+        }
+
+        public Event CreateOutlookEventFromWelkinEvent(WelkinEvent welkinEvent, WelkinWorker welkinUser, User outlookUser, WelkinPatient welkinPatient, string calendarId = null)
+        {
             // Create and associate a new Outlook event
             Event outlookEvent = new Event
             {
@@ -428,15 +439,7 @@ namespace OutlookWelkinSync
                 }
             };
 
-            User outlookUser = this.FindUserCorrespondingTo(welkinUser);
-            if (outlookUser == null)
-            {
-                this.logger.LogWarning($"Couldn't find Outlook user corresponding to Welkin user {welkinUser.Email}. " +
-                                       $"Can't create an Outlook event from Welkin event {welkinEvent.Id}.");
-                return null;
-            }
-
-            Event createdEvent = CalendarRequestBuilderFrom(outlookUser.UserPrincipalName, calendarName)
+            Event createdEvent = CalendarRequestBuilderFrom(outlookUser.UserPrincipalName, calendarId)
                                         .Events
                                         .Request()
                                         .AddAsync(outlookEvent)
@@ -450,6 +453,24 @@ namespace OutlookWelkinSync
             this.SetOpenExtensionPropertiesOnEvent(createdEvent, keyValuePairs, Constants.OutlookEventExtensionsNamespace);
 
             return createdEvent;
+        }
+
+        public Microsoft.Graph.Calendar RetrieveCalendar(string userPrincipal, string calendarId)
+        {
+            List<Microsoft.Graph.Calendar> calendars = new List<Microsoft.Graph.Calendar>();
+            IUserCalendarsCollectionPage page = this.graphClient
+                .Users[userPrincipal]
+                .Calendars
+                .Request()
+                .GetAsync()
+                .GetAwaiter().GetResult();
+            calendars.AddRange(page.ToList());
+            while (page.NextPageRequest != null)
+            {
+                page = page.NextPageRequest.GetAsync().GetAwaiter().GetResult();
+                calendars.AddRange(page.ToList());
+            }
+            return calendars.Where(c => c.Name.ToLowerInvariant().Equals(calendarId.ToLowerInvariant())).FirstOrDefault();
         }
     }
 }

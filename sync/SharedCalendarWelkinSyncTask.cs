@@ -16,6 +16,7 @@ namespace OutlookWelkinSync
         private readonly string sharedCalendarUser;
         private readonly string sharedCalendarName;
         private readonly User sharedCalendarOutlookUser;
+        private readonly Calendar sharedOutlookCalendar;
 
         public SharedCalendarWelkinSyncTask(
             WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger,
@@ -26,6 +27,7 @@ namespace OutlookWelkinSync
             this.sharedCalendarUser = sharedCalendarUser;
             this.sharedCalendarName = sharedCalendarName;
             this.sharedCalendarOutlookUser = this.outlookClient.RetrieveUser(this.sharedCalendarUser);
+            this.sharedOutlookCalendar = this.outlookClient.RetrieveCalendar(this.sharedCalendarUser, this.sharedCalendarName);
         }
 
         public override Event Sync()
@@ -86,7 +88,7 @@ namespace OutlookWelkinSync
                 WelkinPatient patient = this.welkinClient.RetrievePatient(this.welkinEvent.PatientId);
                 // This will also create and persist the Outlook->Welkin link
                 linkedOutlookEvent = this.outlookClient.CreateOutlookEventFromWelkinEvent(
-                    this.welkinEvent, worker, patient);
+                    this.welkinEvent, worker, this.sharedCalendarOutlookUser, patient, this.sharedOutlookCalendar.Id);
                 WelkinToOutlookLink welkinToOutlookLink = new WelkinToOutlookLink(
                     this.outlookClient, this.welkinClient, this.welkinEvent, linkedOutlookEvent, this.logger);
 
