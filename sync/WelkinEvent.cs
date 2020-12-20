@@ -17,8 +17,9 @@ namespace OutlookWelkinSync
                 outlookEvent.IsAllDay = this.IsAllDay;
                 if (this.IsAllDay)
                 {
-                    outlookEvent.Start.DateTime = this.Day.Value.ToUniversalTime().DateTime.ToString("o");
-                    outlookEvent.End.DateTime = this.Day.Value.ToUniversalTime().AddDays(1).DateTime.ToString("o");
+                    DateTimeOffset dayUtc = this.Day.Value.ToUniversalTime();
+                    outlookEvent.Start.DateTime = dayUtc.DateTime.Date.ToString("o");
+                    outlookEvent.End.DateTime = dayUtc.AddDays(1).DateTime.Date.ToString("o");
                 }
                 else 
                 {

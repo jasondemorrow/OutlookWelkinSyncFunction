@@ -51,24 +51,14 @@ namespace OutlookWelkinSync
             if (externalId != null)
             {
                 string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
-                try
+                linkedOutlookEvent = this.outlookClient.RetrieveEventWithICalId(
+                    this.sharedCalendarUser, 
+                    outlookICalId, 
+                    Constants.OutlookEventExtensionsNamespace, 
+                    this.sharedOutlookCalendar.Id);
+                if (linkedOutlookEvent != null)
                 {
-                    linkedOutlookEvent = this.outlookClient.RetrieveEventWithICalId(
-                        this.sharedCalendarUser, 
-                        outlookICalId, 
-                        Constants.OutlookEventExtensionsNamespace, 
-                        this.sharedCalendarName);
-                    if (linkedOutlookEvent != null)
-                    {
-                        linkedOutlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = 
-                            this.sharedCalendarOutlookUser; // TODO: put this part in the client
-                    }
-                }
-                catch (Exception ex)
-                {
-                    this.logger.LogInformation(
-                        $"Welkin event {this.welkinEvent.Id} has a linked Outlook event, but it's outside of the" +
-                         "configured shared calendar. Creating a new event in the shared calendar.");
+                    linkedOutlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = this.sharedCalendarOutlookUser; // TODO: put this part in the client
                 }
             }
 
