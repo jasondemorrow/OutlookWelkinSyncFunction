@@ -98,5 +98,15 @@ namespace OutlookWelkinSync
         {
             return JsonConvert.SerializeObject(this);
         }
+
+        [JsonIgnore]
+        public bool IsCancelled
+        {
+            get
+            {
+                return !string.IsNullOrEmpty(this.Outcome) &&
+                       this.Outcome.Equals(Constants.WelkinCancelledOutcome, StringComparison.InvariantCultureIgnoreCase);
+            }
+        }
     }
 }

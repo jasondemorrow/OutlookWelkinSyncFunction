@@ -150,7 +150,7 @@ namespace OutlookWelkinSync
                     .GetResult();
         }
 
-        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTime start, DateTime end, string extensionsNamespace = null, string calendarId = null)
+        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTimeOffset start, DateTimeOffset end, string extensionsNamespace = null, string calendarId = null)
         {
             var queryOptions = new List<QueryOption>()
             {

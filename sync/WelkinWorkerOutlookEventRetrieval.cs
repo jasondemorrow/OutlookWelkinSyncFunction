@@ -55,5 +55,63 @@ namespace OutlookWelkinSync
 
             return events;
         }
+
+        public override IEnumerable<Event> RetrieveAllOrphanedBetween(DateTimeOffset start, DateTimeOffset end)
+        {
+            List<Event> orphaned = new List<Event>();
+            IEnumerable<WelkinWorker> workers = this.welkinClient.RetrieveAllWorkers();
+            ISet<string> successfulOutlookUsers = new HashSet<string>();
+
+            foreach (WelkinWorker worker in workers)
+            {
+                try
+                {
+                    User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
+                    if (outlookUser == null || successfulOutlookUsers.Contains(outlookUser.UserPrincipalName))
+                    {
+                        continue;
+                    }
+
+                    IEnumerable<Event> events = this.outlookClient.RetrieveEventsForUserScheduledBetween(
+                        outlookUser.UserPrincipalName, 
+                        start, 
+                        end, 
+                        Constants.OutlookEventExtensionsNamespace);
+
+                    foreach (Event outlookEvent in events)
+                    {
+                        if (OutlookClient.IsPlaceHolderEvent(outlookEvent))
+                        {
+                            string linkedWelkinEventId = this.outlookClient.LinkedWelkinEventIdFrom(outlookEvent);
+                            WelkinEvent syncedTo = null;
+                            if (!string.IsNullOrEmpty(linkedWelkinEventId))
+                            {
+                                try
+                                {
+                                    syncedTo = this.welkinClient.RetrieveEvent(linkedWelkinEventId);
+                                }
+                                catch (Exception e)
+                                {
+                                    this.logger.LogError(e, $"Failed to retrieve Welkin event for placeholder Outlook event {outlookEvent.ICalUId}.");
+                                }
+
+                                if (syncedTo == null || syncedTo.IsCancelled)
+                                {
+                                    outlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser; // TODO: put this part in the client
+                                    orphaned.Add(outlookEvent);
+                                }
+                            }
+                        }
+                    }
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogInformation(
+                        $"Exception while trying to retrieve events for {worker.Email}: {ex.Message}");
+                }
+            }
+
+            return orphaned;
+        }
     }
 }

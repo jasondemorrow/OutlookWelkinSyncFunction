@@ -23,5 +23,10 @@ namespace OutlookWelkinSync
         {
             throw new System.NotImplementedException();
         }
+
+        public virtual IEnumerable<Event> RetrieveAllOrphanedBetween(DateTimeOffset start, DateTimeOffset end)
+        {
+            throw new System.NotImplementedException();
+        }
     }
 }

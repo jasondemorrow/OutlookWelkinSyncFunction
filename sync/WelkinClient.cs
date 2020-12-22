@@ -412,6 +412,18 @@ namespace OutlookWelkinSync
                         .FirstOrDefault();
         }
 
+        public IEnumerable<WelkinExternalId> FindExternalEventMappingsUpdatedSince(TimeSpan ago)
+        {
+            DateTime end = DateTime.UtcNow;
+            DateTime start = end - ago;
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["resource"] = Constants.CalendarEventResourceName;
+            parameters["page[from]"] = start.ToString("o");
+            parameters["page[to]"] = end.ToString("o");
+            IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
+            return foundLinks.Where(x => x.Namespace.StartsWith(Constants.WelkinEventExtensionNamespacePrefix));
+        }
+        
         public WelkinLastSyncEntry RetrieveLastSyncFor(WelkinEvent internalEvent)
         {
             // We store last sync time for an event as an external ID. This is a hack to make event types extensible.

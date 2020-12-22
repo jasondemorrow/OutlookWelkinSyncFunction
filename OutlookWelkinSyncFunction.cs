@@ -74,6 +74,23 @@ namespace OutlookWelkinSyncFunction
                 }
             }
 
+            // 5. Find any orphaned Outlook events (placeholder events whose linked Welkin event is cancelled) and delete them
+            DateTimeOffset start = DateTimeOffset.UtcNow;
+            DateTimeOffset end = start.AddDays(14); // Search all events scheduled in the next two weeks.
+            IEnumerable<Event> orphanedOutlookEvents = outlookEventRetrieval.RetrieveAllOrphanedBetween(start, end);
+            foreach (Event outlookEvent in orphanedOutlookEvents)
+            {
+                try
+                {
+                    log.LogWarning($"Deleting orphaned Outlook placeholder event {outlookEvent.ICalUId}.");
+                    outlookClient.DeleteEvent(outlookEvent);
+                }
+                catch (Exception ex)
+                {
+                    log.LogError($"Exception while deleting Outlook event {outlookEvent.ICalUId}: {ex.Message} {ex.StackTrace}");
+                }
+            }
+
             log.LogInformation("Done!");
         }
     }
