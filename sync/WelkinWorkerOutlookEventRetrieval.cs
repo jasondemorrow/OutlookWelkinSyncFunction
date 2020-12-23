@@ -73,7 +73,7 @@ namespace OutlookWelkinSync
                     }
 
                     IEnumerable<Event> events = this.outlookClient.RetrieveEventsForUserScheduledBetween(
-                        outlookUser.UserPrincipalName, 
+                        outlookUser, 
                         start, 
                         end, 
                         Constants.OutlookEventExtensionsNamespace);
@@ -97,7 +97,6 @@ namespace OutlookWelkinSync
 
                                 if (syncedTo == null || syncedTo.IsCancelled)
                                 {
-                                    outlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser; // TODO: put this part in the client
                                     orphaned.Add(outlookEvent);
                                 }
                             }

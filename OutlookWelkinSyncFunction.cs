@@ -25,7 +25,8 @@ namespace OutlookWelkinSyncFunction
             List<Sync.WelkinSyncTask> welkinSyncTasks = new List<Sync.WelkinSyncTask>();
             List<Sync.OutlookSyncTask> outlookSyncTasks = new List<Sync.OutlookSyncTask>();
 
-            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddHours(-2);
+            // Go back one week on the first run, sync only since previous run thereafter
+            DateTime lastRun = timerInfo?.ScheduleStatus?.Last ?? DateTime.UtcNow.AddDays(-7);
             TimeSpan historySpan = DateTime.UtcNow - lastRun.AddMinutes(-1);
 
             // 1. Get all recently updated Welkin events (sync is Welkin-driven since this set of users will be smaller)

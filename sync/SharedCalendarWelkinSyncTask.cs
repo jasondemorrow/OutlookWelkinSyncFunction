@@ -52,14 +52,10 @@ namespace OutlookWelkinSync
             {
                 string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
                 linkedOutlookEvent = this.outlookClient.RetrieveEventWithICalId(
-                    this.sharedCalendarUser, 
+                    this.sharedCalendarOutlookUser, 
                     outlookICalId, 
                     Constants.OutlookEventExtensionsNamespace, 
                     this.sharedOutlookCalendar.Id);
-                if (linkedOutlookEvent != null)
-                {
-                    linkedOutlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = this.sharedCalendarOutlookUser; // TODO: put this part in the client
-                }
             }
 
             if (linkedOutlookEvent != null)

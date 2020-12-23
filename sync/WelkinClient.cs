@@ -214,24 +214,11 @@ namespace OutlookWelkinSync
         {
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
-            string url = $"{config.ApiUrl}calendar_events?page[from]={start.ToString("o")}&page[to]={end.ToString("o")}";
-            var client = new RestClient(url);
-            var request = new RestRequest(Method.GET);
-            request.AddHeader("authorization", "Bearer " + this.token);
-            request.AddHeader("cache-control", "no-cache");
-            var response = client.Execute(request);
-            JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
-            JArray data = result.First.ToObject<JProperty>().Value.ToObject<JArray>();
-            // Filter out placeholder events created by sync. Welkin API doesn't support querying by patient ID.
-            List<WelkinEvent> events = JsonConvert.DeserializeObject<List<WelkinEvent>>(data.ToString());
-            // Cache results for individual retrieval
-            foreach (WelkinEvent welkinEvent in events)
-            {
-                string key = $"{config.ApiUrl}{Constants.CalendarEventResourceName}/{welkinEvent.Id}";
-                internalCache.Set(key, welkinEvent, cacheEntryOptions);
-            }
-
-            return events.Where(this.IsValid);
+            Dictionary<string, string> parameters = new Dictionary<string, string>();
+            parameters["page[from]"] = start.ToString("o");
+            parameters["page[to]"] = end.ToString("o");
+            IEnumerable<WelkinEvent> retrieved = SearchObjects<WelkinEvent>(Constants.CalendarEventResourceName, parameters);
+            return retrieved.Where(this.IsValid);
         }
 
         private bool IsValid(WelkinEvent evt)
@@ -412,10 +399,8 @@ namespace OutlookWelkinSync
                         .FirstOrDefault();
         }
 
-        public IEnumerable<WelkinExternalId> FindExternalEventMappingsUpdatedSince(TimeSpan ago)
+        public IEnumerable<WelkinExternalId> FindExternalEventMappingsUpdatedBetween(DateTimeOffset start, DateTimeOffset end)
         {
-            DateTime end = DateTime.UtcNow;
-            DateTime start = end - ago;
             Dictionary<string, string> parameters = new Dictionary<string, string>();
             parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["page[from]"] = start.ToString("o");

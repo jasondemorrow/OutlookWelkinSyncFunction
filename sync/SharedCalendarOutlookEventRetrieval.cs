@@ -42,7 +42,7 @@ namespace OutlookWelkinSync
         {
             List<Event> orphaned = new List<Event>();
             IEnumerable<Event> events = this.outlookClient.RetrieveEventsForUserScheduledBetween(
-                this.sharedCalendarUser, 
+                this.sharedCalendarOutlookUser, 
                 start, 
                 end, 
                 Constants.OutlookEventExtensionsNamespace, 
@@ -67,7 +67,6 @@ namespace OutlookWelkinSync
 
                         if (syncedTo == null || syncedTo.IsCancelled)
                         {
-                            outlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = this.sharedCalendarOutlookUser; // TODO: put this part in the client
                             orphaned.Add(outlookEvent);
                         }
                     }

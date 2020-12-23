@@ -93,21 +93,21 @@ namespace OutlookWelkinSync
         }
 
         public Event RetrieveEventWithICalId(
-            string userPrincipal, 
-            string guid, 
+            User owningUser, 
+            string iCalId, 
             string extensionsNamespace = null, 
             string calendarId = null)
         {
             Event found;
-            if (this.internalCache.TryGetValue(guid, out found))
+            if (this.internalCache.TryGetValue(iCalId, out found))
             {
                 return found;
             }
 
-            string filter = $"iCalUId eq '{guid}'";
+            string filter = $"iCalUId eq '{iCalId}'";
 
             ICalendarEventsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(userPrincipal, calendarId)
+                        CalendarRequestBuilderFrom(owningUser.UserPrincipalName, calendarId)
                             .Events
                             .Request()
                             .Filter(filter);
@@ -122,8 +122,13 @@ namespace OutlookWelkinSync
                     .GetAwaiter()
                     .GetResult()
                     .FirstOrDefault();
+            
+            if (found != null && found.AdditionalData != null)
+            {
+                found.AdditionalData[Constants.OutlookUserObjectKey] = owningUser;
+            }
 
-            this.internalCache.Set(guid, found, this.cacheEntryOptions);
+            this.internalCache.Set(iCalId, found, this.cacheEntryOptions);
             return found;
         }
 
@@ -150,7 +155,7 @@ namespace OutlookWelkinSync
                     .GetResult();
         }
 
-        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(string userPrincipal, DateTimeOffset start, DateTimeOffset end, string extensionsNamespace = null, string calendarId = null)
+        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(User outlookUser, DateTimeOffset start, DateTimeOffset end, string extensionsNamespace = null, string calendarId = null)
         {
             var queryOptions = new List<QueryOption>()
             {
@@ -159,7 +164,7 @@ namespace OutlookWelkinSync
             };
 
             ICalendarEventsCollectionRequest request = 
-                        CalendarRequestBuilderFrom(userPrincipal, calendarId)
+                        CalendarRequestBuilderFrom(outlookUser.UserPrincipalName, calendarId)
                             .Events
                             .Request(queryOptions);
 
@@ -177,6 +182,10 @@ namespace OutlookWelkinSync
             foreach (Event outlookEvent in events)
             {
                 this.internalCache.Set(outlookEvent.ICalUId, outlookEvent, this.cacheEntryOptions);
+                if (outlookEvent.AdditionalData != null)
+                {
+                    outlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser;
+                }
             }
 
             return events;
