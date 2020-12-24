@@ -123,12 +123,15 @@ namespace OutlookWelkinSync
                     .GetResult()
                     .FirstOrDefault();
             
-            if (found != null && found.AdditionalData != null)
+            if (found != null)
             {
-                found.AdditionalData[Constants.OutlookUserObjectKey] = owningUser;
+                this.internalCache.Set(iCalId, found, this.cacheEntryOptions);
+                if (found.AdditionalData != null)
+                {
+                    found.AdditionalData[Constants.OutlookUserObjectKey] = owningUser;
+                }
             }
 
-            this.internalCache.Set(iCalId, found, this.cacheEntryOptions);
             return found;
         }
 
@@ -278,22 +281,34 @@ namespace OutlookWelkinSync
 
             retrieved = this.graphClient.Users[email].Request().GetAsync().GetAwaiter().GetResult();
 
-            internalCache.Set(email, retrieved, this.cacheEntryOptions);
+            if (retrieved != null)
+            {
+                internalCache.Set(email, retrieved, this.cacheEntryOptions);
+            }
+
             return retrieved;
         }
 
         public User FindUserCorrespondingTo(WelkinWorker welkinWorker)
         {
+            User retrieved;
+            string key = "outlookuserfor:" + welkinWorker.Email;
+            if (internalCache.TryGetValue(key, out retrieved))
+            {
+                return retrieved;
+            }
+
             ISet<string> domains = this.RetrieveAllDomainsInCompany();
             ISet<string> candidateEmails = ProducePrincipalCandidates(welkinWorker, domains);
             foreach (string email in candidateEmails)
             {
                 try
                 {
-                    User outlookUser = this.RetrieveUser(email);
-                    if (outlookUser != null)
+                    retrieved = this.RetrieveUser(email);
+                    if (retrieved != null)
                     {
-                        return outlookUser;
+                        internalCache.Set(key, retrieved, this.cacheEntryOptions);
+                        return retrieved;
                     }
                 }
                 catch (ServiceException ex)

@@ -1,5 +1,6 @@
 namespace OutlookWelkinSync
 {
+    using System;
     using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
 
@@ -51,7 +52,7 @@ namespace OutlookWelkinSync
 
             return true;
         }
-
+        
         public override string ToString()
         {
             return $"{this.GetType().FullName} for {this.welkinEvent.Id}";
