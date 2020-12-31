@@ -224,14 +224,19 @@ namespace OutlookWelkinSync
         private bool IsValid(WelkinEvent evt)
         {
             return 
-                evt != null && 
-                !(evt.PatientId == null || evt.PatientId.Equals(this.dummyPatientId)) && 
+                evt != null && evt.PatientId != null &&
                 !(evt.Outcome != null && evt.Outcome.Equals(Constants.WelkinCancelledOutcome));
         }
 
         public void DeleteEvent(WelkinEvent welkinEvent)
         {
             this.DeleteObject(welkinEvent.Id, Constants.CalendarEventResourceName);
+        }
+
+        public WelkinEvent CancelEvent(WelkinEvent welkinEvent)
+        {
+            welkinEvent.Outcome = Constants.WelkinCancelledOutcome;
+            return this.CreateOrUpdateObject(welkinEvent, Constants.CalendarEventResourceName, welkinEvent.Id);
         }
 
         public WelkinCalendar RetrieveCalendar(string calendarId)
@@ -431,7 +436,7 @@ namespace OutlookWelkinSync
         {
             if (lastSync == null)
             {
-                lastSync = DateTimeOffset.UtcNow;
+                lastSync = DateTimeOffset.UtcNow.AddSeconds(Constants.SecondsToAccountForEventualConsistency);
             }
 
             // We store last sync time for an event as an external ID namespace. 

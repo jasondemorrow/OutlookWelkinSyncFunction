@@ -390,7 +390,7 @@ namespace OutlookWelkinSync
         {
             if (lastSync == null)
             {
-                lastSync = DateTimeOffset.UtcNow;
+                lastSync = DateTimeOffset.UtcNow.AddSeconds(Constants.SecondsToAccountForEventualConsistency);
             }
 
             IDictionary<string, object> keyValuePairs = new Dictionary<string, object>

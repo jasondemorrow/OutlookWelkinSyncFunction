@@ -26,5 +26,6 @@ namespace OutlookWelkinSync
         public const string DummyPatientEnvVarName = "WelkinDummyPatientId";
         public const string SharedCalUserEnvVarName = "OutlookSharedCalendarUser";
         public const string SharedCalNameEnvVarName = "OutlookSharedCalendarName";
+        public const int SecondsToAccountForEventualConsistency = 3;
     }
 }

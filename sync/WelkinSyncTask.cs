@@ -52,7 +52,11 @@ namespace OutlookWelkinSync
 
             return true;
         }
-        
+
+        public virtual void Cleanup()
+        {
+        }
+
         public override string ToString()
         {
             return $"{this.GetType().FullName} for {this.welkinEvent.Id}";

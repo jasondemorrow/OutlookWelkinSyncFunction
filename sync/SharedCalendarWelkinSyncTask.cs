@@ -92,5 +92,38 @@ namespace OutlookWelkinSync
             this.welkinClient.UpdateLastSyncFor(this.welkinEvent, lastSync?.ExternalId?.Id);
             return linkedOutlookEvent;
         }
+        public override void Cleanup()
+        {
+            if (this.welkinClient.IsPlaceHolderEvent(this.welkinEvent))
+            {
+                WelkinExternalId externalId = this.welkinClient.FindExternalMappingFor(this.welkinEvent);
+                User outlookUser = this.sharedCalendarOutlookUser; // TODO: consolidate this with named impl. in base
+                Event outlookEvent = null;
+                int idxId = (externalId == null || string.IsNullOrEmpty(externalId.Namespace))? 
+                                -1 : 
+                                externalId.Namespace.IndexOf(Constants.WelkinEventExtensionNamespacePrefix);
+
+                if (idxId > -1 && outlookUser != null)
+                {
+                    string outlookICalId = externalId.Namespace.Substring(Constants.WelkinEventExtensionNamespacePrefix.Length);
+                    try
+                    {
+                        outlookEvent = this.outlookClient.RetrieveEventWithICalId(outlookUser, outlookICalId);
+                    }
+                    catch (ServiceException)
+                    {
+                        outlookEvent = null;
+                    }
+                }
+
+                // If we can't find either the externally mapped Outlook event for this placeholder event, clean it up
+                if (externalId != null && outlookEvent == null)
+                {
+                    this.logger.LogWarning($"Welkin event {this.welkinEvent.Id} is an orphaned placeholder event for Outlook user " + 
+                                           $"{outlookUser.UserPrincipalName} and will be deleted. Event details: {welkinEvent.ToString()}.");
+                    this.welkinClient.CancelEvent(this.welkinEvent);
+                }
+            }
+        }
     }
 }

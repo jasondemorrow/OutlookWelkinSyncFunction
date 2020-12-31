@@ -68,6 +68,7 @@ namespace OutlookWelkinSyncFunction
                 try
                 {
                     welkinSyncTask.Sync();
+                    welkinSyncTask.Cleanup(); // Cleans up orphaned Welkin placeholder events
                 }
                 catch (Exception ex)
                 {

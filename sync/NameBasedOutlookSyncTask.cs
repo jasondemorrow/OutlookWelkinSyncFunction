@@ -1,5 +1,6 @@
 namespace OutlookWelkinSync
 {
+    using System;
     using Microsoft.Extensions.Logging;
     using Microsoft.Graph;
 
