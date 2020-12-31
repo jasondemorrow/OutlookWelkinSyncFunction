@@ -28,5 +28,10 @@ namespace OutlookWelkinSync
         {
             throw new System.NotImplementedException();
         }
+
+        public override string ToString()
+        {
+            return $"{this.GetType().FullName}";
+        }
     }
 }

@@ -46,7 +46,7 @@ namespace OutlookWelkinSync
                 WelkinCalendar calendar = this.welkinClient.RetrieveCalendarFor(worker);
                 Throw.IfAnyAreNull(eventOwnerEmail, worker, calendar);
 
-                // Generate and save a placeholder event in Welkin with a dummy patient TODO: Need to check first not placeholder
+                // Generate and save a placeholder event in Welkin with a dummy patient
                 WelkinEvent placeholderEvent = this.welkinClient.GeneratePlaceholderEventForCalendar(calendar);
                 placeholderEvent.SyncWith(this.outlookEvent);
                 placeholderEvent = this.welkinClient.CreateOrUpdateEvent(placeholderEvent, placeholderEvent.Id);

@@ -27,15 +27,55 @@ namespace OutlookWelkinSync
 
         public override IEnumerable<Event> RetrieveAllUpdatedSince(TimeSpan ago)
         {
-            /*DateTime end = DateTime.UtcNow;
+            List<Event> events = new List<Event>();
+            DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
-            return this.outlookClient.RetrieveEventsForUserScheduledBetween(
-                this.sharedCalendarUser, 
+            IEnumerable<Event> retrieved = this.outlookClient.RetrieveEventsForUserScheduledBetween(
+                this.sharedCalendarOutlookUser, 
                 start, 
                 end, 
-                null, 
-                this.sharedCalendarName);*/
-            return new List<Event>(); // Outlook event sync from shared calendar not yet supported
+                Constants.OutlookEventExtensionsNamespace, 
+                this.sharedOutlookCalendar.Id);
+
+            // Save the Welkin worker email and owning user on each event for later sync
+            foreach (Event outlookEvent in retrieved)
+            {
+                try
+                {
+                    // Unlike name-based sync, we don't have a Welkin user at this point. We need to
+                    // try and get the Welkin user from the organizer's email and save if successful.
+                    // This user will later be used to create a placeholder event in Welkin if needed.
+                    string userEmail = outlookEvent.Organizer?.EmailAddress?.Address;
+                    if (string.IsNullOrEmpty(userEmail))
+                    {
+                        continue;
+                    }
+
+                    WelkinWorker worker = this.welkinClient.FindWorker(userEmail);
+                    if (worker == null)
+                    {
+                        continue;
+                    }
+
+                    User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
+                    if (outlookUser == null)
+                    {
+                        continue;
+                    }
+
+                    this.logger.LogInformation($"Found new Outlook event {outlookEvent.ICalUId} " + 
+                                               $"for user {userEmail} in shared calendar {this.sharedCalendarName}.");
+                    outlookEvent.AdditionalData[Constants.WelkinWorkerEmailKey] = userEmail;
+                    outlookEvent.AdditionalData[Constants.OutlookUserObjectKey] = outlookUser;
+                    events.Add(outlookEvent);
+                }
+                catch (Exception ex)
+                {
+                    this.logger.LogWarning($"Exception while running {this.ToString()}: {ex.Message} {ex.StackTrace}");
+                }
+            }
+
+            return events;
         }
 
         public override IEnumerable<Event> RetrieveAllOrphanedBetween(DateTimeOffset start, DateTimeOffset end)
