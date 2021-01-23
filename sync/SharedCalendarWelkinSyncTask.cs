@@ -75,6 +75,7 @@ namespace OutlookWelkinSync
                 // This will also create and persist the Outlook->Welkin link
                 linkedOutlookEvent = this.outlookClient.CreateOutlookEventFromWelkinEvent(
                     this.welkinEvent, worker, this.sharedCalendarOutlookUser, patient, this.sharedOutlookCalendar.Id);
+                this.logger.LogInformation($"Successfully created a new Outlook placeholder event {linkedOutlookEvent.ICalUId} in shared calendar {this.sharedOutlookCalendar.Name}.");
                 WelkinToOutlookLink welkinToOutlookLink = new WelkinToOutlookLink(
                     this.outlookClient, this.welkinClient, this.welkinEvent, linkedOutlookEvent, this.logger);
 
