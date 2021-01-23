@@ -37,7 +37,6 @@ namespace OutlookWelkinSync
                 end, 
                 Constants.OutlookEventExtensionsNamespace, 
                 this.sharedOutlookCalendar.Id);
-            this.logger.LogInformation($"Outlook event retrieval successfully queried events.");
 
             // Save the Welkin worker email and owning user on each event for later sync
             foreach (Event outlookEvent in retrieved)
@@ -51,18 +50,21 @@ namespace OutlookWelkinSync
                     string userEmail = outlookEvent.Organizer?.EmailAddress?.Address;
                     if (string.IsNullOrEmpty(userEmail))
                     {
+                        this.logger.LogInformation("No organizer email found while retrieving Outlook event.");
                         continue;
                     }
 
                     WelkinWorker worker = this.welkinClient.FindWorker(userEmail);
                     if (worker == null)
                     {
+                        this.logger.LogInformation("No Welkin worker found while retrieving Outlook event.");
                         continue;
                     }
 
                     User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
                     if (outlookUser == null)
                     {
+                        this.logger.LogInformation("No corresponding Outlook user found while retrieving Outlook event.");
                         continue;
                     }
 

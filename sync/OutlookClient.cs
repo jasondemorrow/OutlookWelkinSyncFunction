@@ -460,6 +460,14 @@ namespace OutlookWelkinSync
                         ? welkinEvent.Day.Value.Date.AddDays(1).ToString() // Midnight day after
                         : welkinEvent.End.Value.ToString(), // Will be UTC
                     TimeZone = welkinUser.Timezone
+                },
+                Organizer = new Recipient
+                {
+                    EmailAddress = new EmailAddress
+                    {
+                        Name = welkinUser.FirstName + " " + welkinUser.LastName,
+                        Address = welkinUser.Email
+                    }
                 }
             };
 
