@@ -479,7 +479,7 @@ namespace OutlookWelkinSync
             return createdEvent;
         }
 
-        public Microsoft.Graph.Calendar RetrieveCalendar(string userPrincipal, string calendarId)
+        public Microsoft.Graph.Calendar RetrieveCalendar(string userPrincipal, string calendarName)
         {
             List<Microsoft.Graph.Calendar> calendars = new List<Microsoft.Graph.Calendar>();
             IUserCalendarsCollectionPage page = this.graphClient
@@ -494,7 +494,17 @@ namespace OutlookWelkinSync
                 page = page.NextPageRequest.GetAsync().GetAwaiter().GetResult();
                 calendars.AddRange(page.ToList());
             }
-            return calendars.Where(c => c.Name.ToLowerInvariant().Equals(calendarId.ToLowerInvariant())).FirstOrDefault();
+            Microsoft.Graph.Calendar calendar = calendars
+                                                    .Where(c => c.Name.ToLowerInvariant().Equals(calendarName.ToLowerInvariant()))
+                                                    .FirstOrDefault();
+            if (calendar == null)
+            {
+                string foundCalendarNames = string.Join(',', calendars.Select(c => c.Name));
+                this.logger.LogWarning(
+                    $"Couldn't find calendar named {calendarName} but did find the following calendars for user {userPrincipal}: {foundCalendarNames}.");
+            }
+
+            return calendar;
         }
     }
 }

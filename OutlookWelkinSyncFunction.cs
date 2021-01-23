@@ -21,6 +21,7 @@ namespace OutlookWelkinSyncFunction
             Sync.WelkinClient welkinClient = ninject.Get<Sync.WelkinClient>();
             Sync.OutlookClient outlookClient = ninject.Get<Sync.OutlookClient>();
             Sync.OutlookEventRetrieval outlookEventRetrieval = ninject.Get<Sync.OutlookEventRetrieval>();
+            log.LogInformation("Clients successfully created.");
 
             List<Sync.WelkinSyncTask> welkinSyncTasks = new List<Sync.WelkinSyncTask>();
             List<Sync.OutlookSyncTask> outlookSyncTasks = new List<Sync.OutlookSyncTask>();
@@ -31,6 +32,7 @@ namespace OutlookWelkinSyncFunction
 
             // 1. Get all recently updated Welkin events (sync is Welkin-driven since this set of users will be smaller)
             IEnumerable<Sync.WelkinEvent> welkinEvents = welkinClient.RetrieveEventsUpdatedSince(historySpan);
+            log.LogInformation("Welkin events retrieved.");
             foreach (Sync.WelkinEvent welkinEvent in welkinEvents)
             {
                 log.LogInformation($"Found a new Welkin event, ID {welkinEvent.Id}.");
@@ -41,6 +43,7 @@ namespace OutlookWelkinSyncFunction
 
             // 2. Run Outlook event retrieval, which checks all Welkin workers' Outlook calendars or a shared calendar
             IEnumerable<Event> outlookEvents = outlookEventRetrieval.RetrieveAllUpdatedSince(historySpan);
+            log.LogInformation("Outlook events retrieved.");
             foreach (Event outlookEvent in outlookEvents)
             {
                 log.LogInformation($"Found a new Outlook event, ID {outlookEvent.ICalUId}.");

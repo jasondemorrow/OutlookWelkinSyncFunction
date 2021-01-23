@@ -27,6 +27,7 @@ namespace OutlookWelkinSync
 
         public override IEnumerable<Event> RetrieveAllUpdatedSince(TimeSpan ago)
         {
+            this.logger.LogInformation($"Running Outlook event retrieval on shared calendar {this.sharedOutlookCalendar?.Name} for user {this?.sharedCalendarOutlookUser?.Mail}");
             List<Event> events = new List<Event>();
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
@@ -36,10 +37,12 @@ namespace OutlookWelkinSync
                 end, 
                 Constants.OutlookEventExtensionsNamespace, 
                 this.sharedOutlookCalendar.Id);
+            this.logger.LogInformation($"Outlook event retrieval successfully queried events.");
 
             // Save the Welkin worker email and owning user on each event for later sync
             foreach (Event outlookEvent in retrieved)
             {
+                this.logger.LogInformation($"Outlook event retrieval found event {outlookEvent.ICalUId}.");
                 try
                 {
                     // Unlike name-based sync, we don't have a Welkin user at this point. We need to
