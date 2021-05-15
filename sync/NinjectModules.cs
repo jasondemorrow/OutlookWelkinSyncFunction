@@ -19,9 +19,40 @@ namespace OutlookWelkinSync
                 Bind<string>()
                     .ToMethod((context) => Environment.GetEnvironmentVariable(Constants.DummyPatientEnvVarName))
                     .InSingletonScope()
-                    .Named("DummyPatientId");
+                    .Named(Constants.DummyPatientEnvVarName);
+
+                string welkinClientVersion = Environment.GetEnvironmentVariable(Constants.WelkinClientVersionKey)?.ToLowerInvariant() ?? "7";
+
+                switch(welkinClientVersion)
+                {
+                    case "8":
+                    case "v8":
+                    {
+                        string sandboxMode = Environment.GetEnvironmentVariable(Constants.WelkinV8UseSandboxKey)?.ToLowerInvariant() ?? "false";
+                        bool useSandbox = Boolean.Parse(sandboxMode);
+                        Bind<bool>()
+                            .ToConstant(useSandbox)
+                            .InSingletonScope()
+                            .Named(Constants.WelkinV8UseSandboxKey);
+                        Bind<string>()
+                            .ToMethod((context) => Environment.GetEnvironmentVariable(Constants.WelkinV8TenantNameKey))
+                            .InSingletonScope()
+                            .Named(Constants.WelkinV8TenantNameKey);
+                        Bind<string>()
+                            .ToMethod((context) => Environment.GetEnvironmentVariable(Constants.WelkinV8InstanceNameKey))
+                            .InSingletonScope()
+                            .Named(Constants.WelkinV8InstanceNameKey);
+                        Bind<IWelkinClient>().To<WelkinClientV8>().InSingletonScope();
+                        break;
+                    }
+                    default:
+                    {
+                        Bind<IWelkinClient>().To<WelkinClientV7>().InSingletonScope();
+                        break;
+                    }
+                }
+
                 Bind<OutlookClient>().To<OutlookClient>().InSingletonScope();
-                Bind<WelkinClient>().To<WelkinClient>().InSingletonScope();
                 Bind<OutlookSyncTask>().To<NameBasedOutlookSyncTask>();
 
                 string sharedCalendarUser = Environment.GetEnvironmentVariable(Constants.SharedCalUserEnvVarName);

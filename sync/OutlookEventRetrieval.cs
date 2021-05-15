@@ -8,10 +8,10 @@ namespace OutlookWelkinSync
     public class OutlookEventRetrieval
     {
         protected readonly OutlookClient outlookClient;
-        protected readonly WelkinClient welkinClient;
+        protected readonly IWelkinClient welkinClient;
         protected readonly ILogger logger;
 
-        protected OutlookEventRetrieval(OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger)
+        protected OutlookEventRetrieval(OutlookClient outlookClient, IWelkinClient welkinClient, ILogger logger)
         {
             Throw.IfAnyAreNull(outlookClient, welkinClient, logger);
             this.outlookClient = outlookClient;

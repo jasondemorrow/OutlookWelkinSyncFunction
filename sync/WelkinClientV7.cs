@@ -15,13 +15,13 @@ namespace OutlookWelkinSync
     using Ninject;
     using RestSharp;
 
-    public class WelkinClient
+    public class WelkinClientV7 : IWelkinClient
     {
         private MemoryCache internalCache = new MemoryCache(new MemoryCacheOptions()
         {
             SizeLimit = 1024
         });
-        private readonly MemoryCacheEntryOptions cacheEntryOptions = 
+        private readonly MemoryCacheEntryOptions cacheEntryOptions =
             new MemoryCacheEntryOptions()
                 .SetAbsoluteExpiration(TimeSpan.FromSeconds(180))
                 .SetSize(1);
@@ -30,7 +30,7 @@ namespace OutlookWelkinSync
         private readonly string token;
         private readonly string dummyPatientId;
 
-        public WelkinClient(WelkinConfig config, ILogger logger, [Named("DummyPatientId")] string dummyPatientId)
+        public WelkinClientV7(WelkinConfig config, ILogger logger, [Named(Constants.DummyPatientEnvVarName)] string dummyPatientId)
         {
             this.config = config;
             this.logger = logger;
@@ -67,10 +67,10 @@ namespace OutlookWelkinSync
 
         private T CreateOrUpdateObject<T>(T obj, string path, string id = null) where T : class
         {
-            string url = (id == null)? $"{config.ApiUrl}{path}" : $"{config.ApiUrl}{path}/{id}";
+            string url = (id == null) ? $"{config.ApiUrl}{path}" : $"{config.ApiUrl}{path}/{id}";
             var client = new RestClient(url);
 
-            Method method = (id == null)? Method.POST : Method.PUT;
+            Method method = (id == null) ? Method.POST : Method.PUT;
             var request = new RestRequest(method);
             request.AddHeader("authorization", "Bearer " + this.token);
             request.AddHeader("cache-control", "no-cache");
@@ -84,8 +84,8 @@ namespace OutlookWelkinSync
 
             JObject result = JsonConvert.DeserializeObject(response.Content) as JObject;
             JObject data = result?.First?.ToObject<JProperty>()?.Value.ToObject<JObject>();
-            T updated = (data == null)? default(T) : JsonConvert.DeserializeObject<T>(data.ToString());
-            
+            T updated = (data == null) ? default(T) : JsonConvert.DeserializeObject<T>(data.ToString());
+
             internalCache.Set(url, updated, cacheEntryOptions);
             return updated;
         }
@@ -104,7 +104,7 @@ namespace OutlookWelkinSync
             request.AddHeader("authorization", "Bearer " + this.token);
             request.AddHeader("cache-control", "no-cache");
 
-            foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
+            foreach (KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
                 request.AddParameter(kvp.Key, kvp.Value);
             }
@@ -157,7 +157,7 @@ namespace OutlookWelkinSync
             var request = new RestRequest(Method.GET);
             request.AddHeader("authorization", "Bearer " + this.token);
             request.AddHeader("cache-control", "no-cache");
-            foreach(KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
+            foreach (KeyValuePair<string, string> kvp in parameters ?? Enumerable.Empty<KeyValuePair<string, string>>())
             {
                 request.AddParameter(kvp.Key, kvp.Value);
             }
@@ -223,7 +223,7 @@ namespace OutlookWelkinSync
 
         private bool IsValid(WelkinEvent evt)
         {
-            return 
+            return
                 evt != null && evt.PatientId != null &&
                 !(evt.Outcome != null && evt.Outcome.Equals(Constants.WelkinCancelledOutcome));
         }
@@ -413,7 +413,7 @@ namespace OutlookWelkinSync
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
             return foundLinks.Where(x => x.Namespace.StartsWith(Constants.WelkinEventExtensionNamespacePrefix));
         }
-        
+
         public WelkinLastSyncEntry RetrieveLastSyncFor(WelkinEvent internalEvent)
         {
             // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
@@ -425,11 +425,11 @@ namespace OutlookWelkinSync
             {
                 return null;
             }
-            WelkinExternalId externalId = 
+            WelkinExternalId externalId =
                 foundLinks
                     .Where(x => x.Namespace.StartsWith(Constants.WelkinLastSyncExtensionNamespace))
                     .FirstOrDefault();
-            return (externalId == null)? null : new WelkinLastSyncEntry(externalId);
+            return (externalId == null) ? null : new WelkinLastSyncEntry(externalId);
         }
 
         public bool UpdateLastSyncFor(WelkinEvent internalEvent, string existingId = null, DateTimeOffset? lastSync = null)
@@ -468,7 +468,7 @@ namespace OutlookWelkinSync
             evt.PatientId = this.dummyPatientId;
             evt.IgnoreUnavailableTimes = true;
             evt.IgnoreWorkingHours = true;
-            
+
             return evt;
         }
 

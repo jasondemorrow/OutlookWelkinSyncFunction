@@ -19,7 +19,7 @@ namespace OutlookWelkinSync
         private readonly Calendar sharedOutlookCalendar;
 
         public SharedCalendarWelkinSyncTask(
-            WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger,
+            WelkinEvent welkinEvent, OutlookClient outlookClient, IWelkinClient welkinClient, ILogger logger,
             [Named(Constants.SharedCalUserEnvVarName)] string sharedCalendarUser,
             [Named(Constants.SharedCalNameEnvVarName)] string sharedCalendarName
             ) : base(welkinEvent, outlookClient, welkinClient, logger)
@@ -93,6 +93,7 @@ namespace OutlookWelkinSync
             this.welkinClient.UpdateLastSyncFor(this.welkinEvent, lastSync?.ExternalId?.Id);
             return linkedOutlookEvent;
         }
+        
         public override void Cleanup()
         {
             if (this.welkinClient.IsPlaceHolderEvent(this.welkinEvent))

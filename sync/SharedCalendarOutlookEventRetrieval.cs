@@ -14,7 +14,7 @@ namespace OutlookWelkinSync
         private readonly Calendar sharedOutlookCalendar;
 
         public SharedCalendarOutlookEventRetrieval(
-            OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger,
+            OutlookClient outlookClient, IWelkinClient welkinClient, ILogger logger,
             [Named(Constants.SharedCalUserEnvVarName)] string sharedCalendarUser,
             [Named(Constants.SharedCalNameEnvVarName)] string sharedCalendarName)
         : base(outlookClient, welkinClient, logger)
@@ -50,21 +50,21 @@ namespace OutlookWelkinSync
                     string userEmail = outlookEvent.Organizer?.EmailAddress?.Address;
                     if (string.IsNullOrEmpty(userEmail))
                     {
-                        this.logger.LogInformation("No organizer email found while retrieving Outlook event.");
+                        this.logger.LogInformation("No organizer email found for retrieved Outlook event.");
                         continue;
                     }
 
                     WelkinWorker worker = this.welkinClient.FindWorker(userEmail);
                     if (worker == null)
                     {
-                        this.logger.LogInformation("No Welkin worker found while retrieving Outlook event.");
+                        this.logger.LogInformation($"No Welkin worker found for organizer {userEmail} for retrieved Outlook event.");
                         continue;
                     }
 
                     User outlookUser = this.outlookClient.FindUserCorrespondingTo(worker);
                     if (outlookUser == null)
                     {
-                        this.logger.LogInformation("No corresponding Outlook user found while retrieving Outlook event.");
+                        this.logger.LogInformation($"No corresponding Outlook user found for worker {worker.Email} in retrieved Outlook event.");
                         continue;
                     }
 

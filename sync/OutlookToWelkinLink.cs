@@ -8,12 +8,12 @@ namespace OutlookWelkinSync
     public class OutlookToWelkinLink
     {
         private readonly OutlookClient outlookClient;
-        private readonly WelkinClient welkinClient;
+        private readonly IWelkinClient welkinClient;
         private readonly Event sourceOutlookEvent;
         private readonly WelkinEvent targetWelkinEvent;
         protected readonly ILogger logger;
 
-        public OutlookToWelkinLink(OutlookClient outlookClient, WelkinClient welkinClient, Event sourceOutlookEvent, WelkinEvent targetWelkinEvent, ILogger logger)
+        public OutlookToWelkinLink(OutlookClient outlookClient, IWelkinClient welkinClient, Event sourceOutlookEvent, WelkinEvent targetWelkinEvent, ILogger logger)
         {
             this.outlookClient = outlookClient;
             this.welkinClient = welkinClient;

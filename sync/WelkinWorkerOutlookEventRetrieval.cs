@@ -7,7 +7,7 @@ namespace OutlookWelkinSync
     
     public class WelkinWorkerOutlookEventRetrieval : OutlookEventRetrieval
     {
-        public WelkinWorkerOutlookEventRetrieval(OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger)
+        public WelkinWorkerOutlookEventRetrieval(OutlookClient outlookClient, IWelkinClient welkinClient, ILogger logger)
         : base(outlookClient, welkinClient, logger)
         {
         }

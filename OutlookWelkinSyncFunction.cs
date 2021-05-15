@@ -18,7 +18,7 @@ namespace OutlookWelkinSyncFunction
             
             Sync.NinjectModules.CurrentLogger = log;
             IKernel ninject = new StandardKernel(Sync.NinjectModules.CurrentModule);
-            Sync.WelkinClient welkinClient = ninject.Get<Sync.WelkinClient>();
+            Sync.IWelkinClient welkinClient = ninject.Get<Sync.IWelkinClient>();
             Sync.OutlookClient outlookClient = ninject.Get<Sync.OutlookClient>();
             Sync.OutlookEventRetrieval outlookEventRetrieval = ninject.Get<Sync.OutlookEventRetrieval>();
             log.LogInformation("Clients successfully created.");

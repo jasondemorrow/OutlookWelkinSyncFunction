@@ -8,10 +8,10 @@ namespace OutlookWelkinSync
     {
         protected WelkinEvent welkinEvent;
         protected readonly OutlookClient outlookClient;
-        protected readonly WelkinClient welkinClient;
+        protected readonly IWelkinClient welkinClient;
         protected readonly ILogger logger;
 
-        protected WelkinSyncTask(WelkinEvent welkinEvent, OutlookClient outlookClient, WelkinClient welkinClient, ILogger logger)
+        protected WelkinSyncTask(WelkinEvent welkinEvent, OutlookClient outlookClient, IWelkinClient welkinClient, ILogger logger)
         {
             this.welkinEvent = welkinEvent;
             this.outlookClient = outlookClient;

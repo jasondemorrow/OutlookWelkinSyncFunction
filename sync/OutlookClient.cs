@@ -135,7 +135,8 @@ namespace OutlookWelkinSync
             return found;
         }
 
-        public IEnumerable<Event> RetrieveEventsForUserUpdatedSince(string userPrincipal, TimeSpan ago, string extensionsNamespace = null, string calendarId = null)
+        public IEnumerable<Event> RetrieveEventsForUserUpdatedSince(
+            string userPrincipal, TimeSpan ago, string extensionsNamespace = null, string calendarId = null)
         {
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
@@ -158,7 +159,8 @@ namespace OutlookWelkinSync
                     .GetResult();
         }
 
-        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(User outlookUser, DateTimeOffset start, DateTimeOffset end, string extensionsNamespace = null, string calendarId = null)
+        public IEnumerable<Event> RetrieveEventsForUserScheduledBetween(
+            User outlookUser, DateTimeOffset start, DateTimeOffset end, string extensionsNamespace = null, string calendarId = null)
         {
             var queryOptions = new List<QueryOption>()
             {
@@ -311,7 +313,7 @@ namespace OutlookWelkinSync
                         return retrieved;
                     }
                 }
-                catch (ServiceException ex)
+                catch (ServiceException)// ex)
                 {
                     //this.logger.LogInformation($"{email}:{ex.StatusCode}");
                 }
