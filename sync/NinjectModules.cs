@@ -47,7 +47,7 @@ namespace OutlookWelkinSync
                     }
                     default:
                     {
-                        Bind<IWelkinClient>().To<WelkinClientV7>().InSingletonScope();
+                        Bind<IWelkinClient>().To<WelkinClient>().InSingletonScope();
                         break;
                     }
                 }

@@ -15,7 +15,7 @@ namespace OutlookWelkinSync
     using Ninject;
     using RestSharp;
 
-    public class WelkinClientV8 : IWelkinClient
+    public class WelkinClient : IWelkinClient
     {
         private MemoryCache internalCache = new MemoryCache(new MemoryCacheOptions()
         {
@@ -29,38 +29,34 @@ namespace OutlookWelkinSync
         private readonly ILogger logger;
         private readonly string token;
         private readonly string dummyPatientId;
-        private readonly string baseEndpointUrl;
 
-        public WelkinClientV8(
-            WelkinConfig config, 
-            ILogger logger, 
-            [Named(Constants.DummyPatientEnvVarName)] string dummyPatientId, 
-            [Named(Constants.WelkinV8UseSandboxKey)] bool useSandbox,
-            [Named(Constants.WelkinV8TenantNameKey)] string tenantName,
-            [Named(Constants.WelkinV8InstanceNameKey)] string instanceName)
+        public WelkinClient(WelkinConfig config, ILogger logger, [Named(Constants.DummyPatientEnvVarName)] string dummyPatientId)
         {
             this.config = config;
             this.logger = logger;
             this.dummyPatientId = dummyPatientId;
-            string baseUrl = useSandbox ? "https://api.sandbox.welkincloud.io" : "https://api.live.welkincloud.io";
-            string authUrl = $"{baseUrl}/{tenantName}/admin/api_clients/{this.config.ClientId}";
-            this.baseEndpointUrl = $"{baseUrl}/{tenantName}/{instanceName}";
-            
-            Dictionary<string, string> values = new Dictionary<string, string> 
+            var payload = new Dictionary<string, object>()
             {
-                { "secret", config.ClientSecret }
+                { "iss", config.ClientId },
+                { "aud", config.TokenUrl },
+                { "scope", config.Scope },
+                { "exp", new DateTimeOffset(DateTime.UtcNow.AddHours(1)).ToUnixTimeSeconds() }
             };
-            string json = JsonConvert.SerializeObject(values);
-            StringContent data = new StringContent(json, Encoding.UTF8, "application/json");
 
+            var secretKey = Encoding.UTF8.GetBytes(config.ClientSecret);
+            string assertion = JWT.Encode(payload, secretKey, JwsAlgorithm.HS256);
+
+            string body = $"grant_type={config.GrantType}&assertion={assertion}";
             using (var httpClient = new HttpClient())
             {
-                HttpResponseMessage postResponse = httpClient.PostAsync(authUrl, data)
+                HttpResponseMessage postResponse = httpClient.PostAsync(
+                        config.TokenUrl,
+                        new StringContent(body, Encoding.UTF8, "application/x-www-form-urlencoded"))
                     .GetAwaiter()
                     .GetResult();
                 string content = postResponse.Content.ReadAsStringAsync().GetAwaiter().GetResult();
                 dynamic resp = JObject.Parse(content);
-                this.token = resp.token;
+                this.token = resp.access_token;
             }
 
             if (string.IsNullOrEmpty(this.token))
@@ -71,7 +67,7 @@ namespace OutlookWelkinSync
 
         private T CreateOrUpdateObject<T>(T obj, string path, string id = null) where T : class
         {
-            string url = (id == null) ? $"{this.baseEndpointUrl}/{path}" : $"{this.baseEndpointUrl}/{path}/{id}";
+            string url = (id == null) ? $"{config.ApiUrl}{path}" : $"{config.ApiUrl}{path}/{id}";
             var client = new RestClient(url);
 
             Method method = (id == null) ? Method.POST : Method.PUT;
@@ -96,7 +92,7 @@ namespace OutlookWelkinSync
 
         private T RetrieveObject<T>(string id, string path, Dictionary<string, string> parameters = null)
         {
-            string url = $"{this.baseEndpointUrl}/{path}/{id}";
+            string url = $"{config.ApiUrl}{path}/{id}";
             T retrieved = default(T);
             if (internalCache.TryGetValue(url, out retrieved))
             {
@@ -129,7 +125,7 @@ namespace OutlookWelkinSync
 
         private void DeleteObject(string id, string path)
         {
-            string url = $"{this.baseEndpointUrl}/{path}/{id}";
+            string url = $"{config.ApiUrl}{path}/{id}";
             var client = new RestClient(url);
 
             Method method = Method.DELETE;
@@ -149,7 +145,7 @@ namespace OutlookWelkinSync
         private IEnumerable<T> SearchObjects<T>(string path, Dictionary<string, string> parameters = null)
         {
             // TODO: Consolidate pagination logic with RetrieveAllWorkers
-            string url = $"{this.baseEndpointUrl}/{path}";
+            string url = $"{config.ApiUrl}{path}";
             string key = url + "?" + string.Join("&", parameters.Select(e => $"{e.Key}={e.Value}"));
             IEnumerable<T> found;
             if (internalCache.TryGetValue(key, out found))
@@ -206,12 +202,12 @@ namespace OutlookWelkinSync
 
         public WelkinEvent CreateOrUpdateEvent(WelkinEvent evt, string id = null)
         {
-            return this.CreateOrUpdateObject(evt, Constants.V8CalendarEventResourceName, id);
+            return this.CreateOrUpdateObject(evt, Constants.CalendarEventResourceName, id);
         }
 
         public WelkinEvent RetrieveEvent(string eventId)
         {
-            return this.RetrieveObject<WelkinEvent>(eventId, Constants.V8CalendarEventResourceName);
+            return this.RetrieveObject<WelkinEvent>(eventId, Constants.CalendarEventResourceName);
         }
 
         public IEnumerable<WelkinEvent> RetrieveEventsUpdatedSince(TimeSpan ago)
@@ -219,9 +215,9 @@ namespace OutlookWelkinSync
             DateTime end = DateTime.UtcNow;
             DateTime start = end - ago;
             Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters["from"] = start.ToFormattedString("o3");
-            parameters["to"] = end.ToFormattedString("o3");
-            IEnumerable<WelkinEvent> retrieved = SearchObjects<WelkinEvent>(Constants.V8CalendarEventResourceName, parameters);
+            parameters["page[from]"] = start.ToString("o");
+            parameters["page[to]"] = end.ToString("o");
+            IEnumerable<WelkinEvent> retrieved = SearchObjects<WelkinEvent>(Constants.CalendarEventResourceName, parameters);
             return retrieved.Where(this.IsValid);
         }
 
@@ -234,13 +230,13 @@ namespace OutlookWelkinSync
 
         public void DeleteEvent(WelkinEvent welkinEvent)
         {
-            this.DeleteObject(welkinEvent.Id, Constants.V8CalendarEventResourceName);
+            this.DeleteObject(welkinEvent.Id, Constants.CalendarEventResourceName);
         }
 
         public WelkinEvent CancelEvent(WelkinEvent welkinEvent)
         {
             welkinEvent.Outcome = Constants.WelkinCancelledOutcome;
-            return this.CreateOrUpdateObject(welkinEvent, Constants.V8CalendarEventResourceName, welkinEvent.Id);
+            return this.CreateOrUpdateObject(welkinEvent, Constants.CalendarEventResourceName, welkinEvent.Id);
         }
 
         public WelkinCalendar RetrieveCalendar(string calendarId)
@@ -400,7 +396,7 @@ namespace OutlookWelkinSync
                 string derivedGuid = Guids.FromText(externalEvent.ICalUId).ToString();
                 parameters["external_id"] = derivedGuid;
             }
-            parameters["resource"] = Constants.V8CalendarEventResourceName;
+            parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["welkin_id"] = internalEvent.Id;
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
             return foundLinks
@@ -411,7 +407,7 @@ namespace OutlookWelkinSync
         public IEnumerable<WelkinExternalId> FindExternalEventMappingsUpdatedBetween(DateTimeOffset start, DateTimeOffset end)
         {
             Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters["resource"] = Constants.V8CalendarEventResourceName;
+            parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["page[from]"] = start.ToString("o");
             parameters["page[to]"] = end.ToString("o");
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
@@ -422,7 +418,7 @@ namespace OutlookWelkinSync
         {
             // We store last sync time for an event as an external ID. This is a hack to make event types extensible.
             Dictionary<string, string> parameters = new Dictionary<string, string>();
-            parameters["resource"] = Constants.V8CalendarEventResourceName;
+            parameters["resource"] = Constants.CalendarEventResourceName;
             parameters["welkin_id"] = internalEvent.Id;
             IEnumerable<WelkinExternalId> foundLinks = SearchObjects<WelkinExternalId>(Constants.ExternalIdResourceName, parameters);
             if (foundLinks == null || !foundLinks.Any())
@@ -451,7 +447,7 @@ namespace OutlookWelkinSync
             WelkinExternalId welkinExternalId = new WelkinExternalId
             {
                 Id = existingId,
-                Resource = Constants.V8CalendarEventResourceName,
+                Resource = Constants.CalendarEventResourceName,
                 ExternalId = Guid.NewGuid().ToString(), // does not matter
                 InternalId = internalEvent.Id,
                 Namespace = syntheticNamespace
