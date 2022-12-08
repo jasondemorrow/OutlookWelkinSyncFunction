@@ -10,7 +10,7 @@
     <PackageReference Include="Microsoft.Graph" Version="3.8.0" />
     <PackageReference Include="Microsoft.Identity.Client" Version="4.16.1" />
     <PackageReference Include="Microsoft.NET.Sdk.Functions" Version="3.0.11" />
-    <PackageReference Include="Newtonsoft.Json" Version="12.0.3" />
+    <PackageReference Include="Newtonsoft.Json" Version="13.0.2" />
     <PackageReference Include="Ninject" Version="3.3.4" />
     <PackageReference Include="RestSharp" Version="106.12" />
     <PackageReference Include="System.Linq" Version="4.3.0" />
